@@ -1,0 +1,73 @@
+.ant-drawer-right {
+    z-index: 100000!important;
+}
+
+.saph-inject-data {
+    color: #333;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1;
+  }
+  
+  .saph-inject-data .saph-domain {
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    max-width: calc(100% - 30px);
+    display: block;
+    overflow: hidden;
+    padding: 5px 6px;
+    border-radius: 3px;
+    background: #cc0000;
+    color: #fff;
+    z-index: 390;
+  }
+  
+  .saph-inject-data .saph-stats {
+    position: absolute;
+    top: 16px;
+    left: 15px;
+    z-index: 390;
+    display: flex;
+    font-size: 12px;
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-start;
+  }
+  
+  .saph-inject-data .saph-stats > div {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 3px;
+    padding: 3px 5px;
+    min-width: 40px;
+  }
+  
+  .saph-inject-data .saph-stats .sahp-dati {
+    background: #cc0000;
+    color: #fff;
+  }
+  
+  .saph-inject-data .saph-stats .saic-saved {
+    color: rgb(231, 30, 30);
+  }
+  
+  .saph-inject-data .saph-stats .saic-reaction {
+    color: rgb(166, 34, 34);
+  }
+  
+  .saph-inject-data .saph-check {
+    height: 25px;
+    width: 25px;
+    display: block;
+    position: absolute;
+    top: -8px;
+    right: 1px;
+    z-index: 390;
+  }
+  
+  .saph-inject-data .sahp-custm {
+    display: none;
+    font-size: 14px;
+    text-transform: uppercase;
+    background: rgb(152, 120, 3);
+  }

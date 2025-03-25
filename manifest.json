@@ -1,0 +1,19 @@
+{
+    "name": "pinterest Helper",
+    "version": "1.0",
+    "manifest_version": 3,
+    "permissions": ["storage", "tabs", "webRequest", "activeTab", "privacy", "webRequestBlocking"],
+    "host_permissions": [
+      "http://*/*",
+      "https://*/*"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["*://*.pinterest.com/*"],
+        "js": ["dist/content.js"]
+      }
+    ]
+  }
