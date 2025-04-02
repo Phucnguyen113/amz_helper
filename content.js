@@ -8,12 +8,11 @@ const div = document.createElement("div");
 
 import { createRoot } from "react-dom/client";
 import React from "react";
-import $ from "jquery";
 import App from './App';
-import { useChromeStorageLocal } from "use-chrome-storage";
+import { AppProvider } from "./utils/AppContext";
 
 const appEl = div
 appEl.id = "the_p_h_b_s_id";
 document.body.appendChild(appEl);
 const appRoot = createRoot(appEl);
-appRoot.render(<App />);
+appRoot.render(<AppProvider><App /></AppProvider>);
