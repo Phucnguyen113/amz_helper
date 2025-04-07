@@ -1,4 +1,4 @@
-import { Badge, Button, Drawer, Space } from "antd";
+import { Badge, Button, Drawer, Space, Popconfirm } from "antd";
 import { FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import React, { useEffect, useState, useRef } from "react";
 import $ from "jquery";
@@ -41,10 +41,13 @@ const App = () => {
     const [presetOpen, setPresetOpen] = useState(false);
     const [itemsSelected, setItemsSelected] = useState(0);
     const [width, setWidthDrawer] = useState(1200);
+
     const {pins, setPins, token, setToken, preset, presetUsed} = useAppContext();
     const [trademarks, collections, customs, whitelist, blacklist, niches, ideas] = usePresetGrouped();
 
+    const isRendering = useRef(false);
     const whitelistRef = useRef(whitelist);
+
     useEffect(() => {
         whitelistRef.current = whitelist;
     }, [whitelist]);
@@ -62,6 +65,43 @@ const App = () => {
     const clearPins = () => {
         setPins([]);
     };
+
+    const checkAllOkPin = async () => {
+        const pinIds = [];
+        $('.ok-pin').each(function (index, element) {
+            const id = $(element).attr('data-test-pin-id');
+            const checkbox = $(`#checkbox-${id}`);
+            if (checkbox && !checkbox.prop('checked')) {
+                // checkbox.prop('checked', true);
+                // checkbox.trigger('change');
+                pinIds.push(id);
+            }
+        });
+        const rebuildPinState = async () => {
+            const url = new URL(window.location.href);
+            const s = url.searchParams.get("q");
+            const rs = url.searchParams.get("rs");
+
+            const newPins = [...pins];
+
+            for (let i = 0; i < pinIds.length; i++) {
+                const pinId = pinIds[i];
+                if (pinId && !newPins.find(i => i.id == pinId)) {
+                    const pinInfo = await fetchPinInfor(pinId);
+                    newPins.push({
+                        ...pinInfo,
+                        ...presetUsed,
+                        keyword: s || '',
+                        relatedKeyword: rs || ''
+                    });
+                }
+            }
+
+            setPins(newPins);
+        };
+
+        rebuildPinState();
+    }
 
     const fetchPinInfor = async (pinId) => {
         const response =  await axios.get(`https://www.pinterest.com/pin/${pinId}/?from-extension=true`);
@@ -91,8 +131,10 @@ const App = () => {
                 if (script.id === '__PWS_INITIAL_PROPS__') {
                     if (json?.initialReduxState?.pins?.[pinId]) {
                         const pinObject = json?.initialReduxState?.pins?.[pinId];
-                        console.log('pinObject', pinObject);
-                        // console.log('pinObject', pinObject);
+                        if (pinObject?.videos) {
+                            //  console.log('pinObject', pinObject);
+                        }
+
                         let reactionCount = 0;
                         Object.values(pinObject?.reaction_counts || {}).map((n) => {
                           reactionCount += n;
@@ -117,6 +159,14 @@ const App = () => {
                                 return image?.canonical_images?.['736x'].url;
                             });
                         }
+
+                        let is_video = false;
+                        let videos = null;
+                        if (pinObject?.videos?.id) {
+                          is_video = true;
+                          videos = pinObject?.videos.video_list;
+                        }
+
                         pinData =  {
                             id: pinObject?.id,
                             comment: pinObject?.aggregated_pin_data?.comment_count,
@@ -130,7 +180,9 @@ const App = () => {
                             saved: pinObject?.aggregated_pin_data?.aggregated_stats?.saves,
                             full_name: user?.full_name || "",
                             username: user?.username || "",
-                            domain: pinObject?.domain
+                            domain: pinObject?.domain,
+                            is_video,
+                            videos: videos
                         }
                         break;
                     }                
@@ -165,7 +217,10 @@ const App = () => {
 
     const hightlightType = (pin) => {
         const { _highlight } = presetUsed;
-        
+        if (!pin) {
+            return;
+        }
+
         if (!pin.title) {
             return 'warning';
         }
@@ -202,9 +257,14 @@ const App = () => {
 
     // listen pinterest fetch data & inject checkbox
     useEffect(() => {
-        const updatePinCheckbox = (message, sender, sendResponse) => {
+        const updatePinCheckbox = async (message, sender, sendResponse) => {
             switch (message.action) {
                 case "urlLoaded":
+                    if (isRendering.current) {
+                        return;
+                    }
+                    isRendering.current = true;
+                    console.log('render checkbox');
                     const renderPinDetailOrRelatedPin = async () => {
                         const element =  $('div[data-test-id="visual-content-container"]');
                         if (!element) return;
@@ -229,7 +289,7 @@ const App = () => {
                                 $(element2).attr('data-test-pin-id', id);                            }
                         }
                     }
-                    renderPinDetailOrRelatedPin();
+                    await renderPinDetailOrRelatedPin();
                 // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
                 $('div[data-test-pin-id]').each( async function (index, element) {
                     const id = $(element).attr('data-test-pin-id');
@@ -262,11 +322,12 @@ const App = () => {
                                 <div class="sahp-dati" title="Date added ${data?.createdDate || ""}"><i class="saic-date"></i> ${d}</div>
                                 <div class="sahp-custm" title="Is custom type">Type Custom</div>
                             </div>
-                                <input class="saph-check"  data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+                                <input class="saph-check" id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                         </div>
                     `);
                     $(element).append(ButtonWrapper);
                 });
+                isRendering.current = false;
                 break;
             }
         };
@@ -274,6 +335,11 @@ const App = () => {
         const hasAllProperties = requiredProperties.every(prop => presetUsed.hasOwnProperty(prop));
 
         if (!token || preset.length < 3 || !hasAllProperties) {
+            $('div[data-test-pin-id]').each( async function (index, element) {
+                const id = $(element).attr('data-test-pin-id');
+                $(element).find(`#inject-${id}`).remove();
+                $(element).removeClass('warning-pin error-pin ok-pin');
+            });
             return;
         }
 
@@ -289,13 +355,18 @@ const App = () => {
     useEffect(() => {
         const handleChangeCheckbox = async function (e, index) {
             const pinId = $(e.currentTarget).attr('data-id');
-
+            console.log('change', pinId, pins);
             if (e.currentTarget.checked) {
+                const url = new URL(window.location.href);
+                const s = url.searchParams.get("q");
+                const rs = url.searchParams.get("rs");
                 const pinInfor = await fetchPinInfor(pinId);
-                console.log('click', {...pinInfor, ...presetUsed}, presetUsed);
-                setPins([...pinsRef.current, {...pinInfor, ...presetUsed}]);
+                console.log('click', {...pinInfor, ...presetUsed});
+                const newPin = {...pinInfor, ...presetUsed, keyword: (s || ''), relatedKeyword: (rs || '')};
+                setPins([...pinsRef.current, newPin]);
+                // setPins([...pinsRef.current, {...pinInfor, ...presetUsed, keyword: (s || ''), relatedKeyword: (rs || '')}]);
             } else {
-                setPins([...pinsRef.current.filter(item => item.id != pinId)]);
+                setPins(prev => prev.filter(p => p.id !== pinId));
             }
          };
         $(document).on('change', '.saph-check', handleChangeCheckbox)
@@ -308,10 +379,23 @@ const App = () => {
     return (
         <div style={{position: 'fixed', bottom: '100px', right: '10px'}} >
             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                <Button onClick={checkAllOkPin}>Check All</Button>
                 <Preset isOpen={presetOpen} setOpen={setPresetOpen}></Preset>
                 <Badge size="small" count={pins.length} style={{marginTop: '10px'}}>
                     <Button style={{padding: '12px 20px'}} type="primary" size="small" onClick={showDrawer}>Spins</Button>
                 </Badge>
+                <Popconfirm
+                    title="Delete all!"
+                    description="Are you sure to delete all pin items?"
+                    onConfirm={() => setPins([])}
+                    onCancel={() => { }}
+                    okText="Yes"
+                    cancelText="No"
+                >
+                    <Button size="small" type="primary" danger>
+                        Remove All
+                    </Button>
+                </Popconfirm>
             </div>
             <Drawer
                 id="pin-drawer"
@@ -331,7 +415,10 @@ const App = () => {
                         <Space>
                             <Button
                                 onClick={(e) => {
-                                    setPresetOpen(true);
+                                    if (token) {
+                                        setPresetOpen(true);
+                                    }
+
                                     setOpenDrawer(false);
                                 }}
                                 >

@@ -9,7 +9,7 @@ const TokenSettings = () => {
 
   useEffect(() => {
     setInputText(token);
-  }, []);
+  }, [token]);
 
   const handleSetNewToken = () => {
     setToken(inputText);

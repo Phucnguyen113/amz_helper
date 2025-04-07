@@ -61,7 +61,7 @@ const Settings = () => {
             >
             <Form layout="vertical">
                 <Form.Item label={"API Key"}>
-                <TokenSettings />
+                    <TokenSettings />
                 </Form.Item>
 
                 <Form.Item label={"Blacklist"}>

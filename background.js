@@ -1,5 +1,3 @@
-console.log('background work')
-
 chrome.webRequest.onCompleted.addListener(
     (details) => {
         // console.log(details, 123);
@@ -74,5 +72,35 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
             status: status,
             data: data
         });
+    }
+})
+
+
+chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
+    if (msg.action === 'savePins') {
+        const pins = msg.pins;
+        const url = `https://evo.evolutee.net/api/save-pinterest2?key=${encodeURIComponent(msg.key)}`
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(pins)
+            })
+            if (!response.ok) {
+                throw new Error("Sync failed", response);
+            }
+            const data = await response.json();  // Chuyển đổi response thành JSON
+            console.log('Saved successfully:', data);
+
+            chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'savePinsDone',
+                status: true,
+                data: data.data
+            });
+        } catch (error) {
+            console.log('err', error);
+        }
     }
 })

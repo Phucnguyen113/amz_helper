@@ -83,7 +83,9 @@ const Preset = ({ isOpen, setOpen }) => {
     }, []);
 
   const showModal = () => {
-    setOpen(true);
+    if (token) {
+      setOpen(true);
+    }
   };
   const handleCancel = () => {
     setOpen(false);
