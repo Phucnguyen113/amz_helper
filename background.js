@@ -3,7 +3,7 @@ chrome.webRequest.onCompleted.addListener(
         // console.log(details, 123);
         if (
             !["xmlhttprequest"].includes(details.type) ||
-            !details.url.includes("pinterest.")
+            !details.url.includes("etsy.")
             || details.url.includes('from-extension')
         ) {
             return;
@@ -16,6 +16,21 @@ chrome.webRequest.onCompleted.addListener(
     },
     { urls: ["<all_urls>"] }
 );
+console.log('work');
+// chrome.runtime.onInstalled.addListener(() => {
+//     // Đợi 1s cho content script inject xong
+//     chrome.alarms.create("trigger_reload", { delayInMinutes: 0.016 });
+// });
+  
+// chrome.alarms.onAlarm.addListener((alarm) => {
+// if (alarm.name === "trigger_reload") {
+//     chrome.tabs.query({ url: "*://*.pinterest.com/*" }, (tabs) => {
+//     tabs.forEach((tab) => {
+//         chrome.tabs.sendMessage(tab.id, { action: "reload_page" });
+//     });
+//     });
+// }
+// });
 
 const fetchPreset = async (key) => {
     const urls = [

@@ -17,7 +17,7 @@
   
   .saph-inject-data .saph-domain {
     position: absolute;
-    top: -10px;
+    top: 0px;
     left: 10px;
     max-width: calc(100% - 30px);
     display: block;
@@ -31,7 +31,7 @@
   
   .saph-inject-data .saph-stats {
     position: absolute;
-    top: 16px;
+    top: 30px;
     left: 15px;
     z-index: 390;
     display: flex;
@@ -66,7 +66,7 @@
     width: 25px;
     display: block;
     position: absolute;
-    top: -8px;
+    top: -0px;
     right: 1px;
     z-index: 390;
   }
@@ -93,15 +93,15 @@
 }
 
 .ok-pin {
-  border: 3px dotted #4096ff;
+  border: 3px dotted #4096ff !important;
 }
 
 .warning-pin {
-  border: 3px dotted #e9b953;
+  border: 3px dotted #e9b953 !important;
 }
 
 .error-pin {
-  border: 3px dotted red;
+  border: 3px dotted red!important;
 }
 
 [class^="saic-"]:before, [class*=" saic-"]:before {
@@ -189,4 +189,8 @@
 
 .ant-popover {
   z-index: 999999999999999999999!important;
+}
+
+.wt-card.wt-card--transparent a.wt-card__action-link:hover {
+  inset: 0!important;
 }

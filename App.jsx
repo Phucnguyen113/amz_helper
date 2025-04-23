@@ -1,7 +1,7 @@
 import { Badge, Button, Drawer, Space, Popconfirm } from "antd";
 import { FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import React, { useEffect, useState, useRef } from "react";
-import $ from "jquery";
+import $, { ready } from "jquery";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import updateLocale from "dayjs/plugin/updateLocale";
@@ -15,6 +15,7 @@ import TokenSettings from "./component/TokenSettings";
 import Settings from "./component/Setting";
 import Preset from "./component/Preset";
 import { usePresetGrouped } from "./utils/hook";
+import useVisibleListings from "./utils/visibleListings";
 
 dayjs.extend(relativeTime);
 dayjs.extend(updateLocale);
@@ -41,12 +42,143 @@ const App = () => {
     const [presetOpen, setPresetOpen] = useState(false);
     const [itemsSelected, setItemsSelected] = useState(0);
     const [width, setWidthDrawer] = useState(1200);
+    const visibleIds = useVisibleListings(); // default threshold = 0.5
 
     const {pins, setPins, token, setToken, preset, presetUsed} = useAppContext();
     const [trademarks, collections, customs, whitelist, blacklist, niches, ideas] = usePresetGrouped();
 
-    const isRendering = useRef(false);
     const whitelistRef = useRef(whitelist);
+
+    useEffect( () => {
+        const renderPinDetailOrRelatedPin = async () => {
+            const element = document.querySelector('div[data-palette-listing-id][data-component=listing-page-image-carousel]');
+            if (element) {
+                const id  = element.getAttribute('data-palette-listing-id');
+                if (id) {
+                    $(element).attr('data-listing-id', id);
+
+                }
+            }
+
+            const element2 = document.querySelectorAll('li[data-clg-id="WtListItem"] a');
+            if (element2.length) {
+                for (let i = 0; i < element2.length; i++) {
+                    const element = element2[i]; // a tag
+                    const href = $(element).attr('href');
+                    const match = href.match(/\/listing\/(\d+)/);
+                    if (match) {
+                        const listingId = match[1];
+                        $(element).attr('data-listing-id', listingId);
+                    }
+                }
+                const likeButtons = document.getElementsByClassName('implicit-comparison-favorite-button wt-position-absolute wt-position-top wt-position-right');
+
+                for (let i = 0; i < likeButtons.length; i++) {
+                    const element = likeButtons[i];
+                    element.remove();
+                }
+            }
+        }
+
+        const likeButtons = document.getElementsByClassName('v2-listing-card__actions wt-z-index-1 wt-position-absolute');
+        for (let i = 0; i < likeButtons.length; i++) {
+            const element = likeButtons[i];
+            element.remove();
+        }
+
+        async function processBatch(elements) {
+            // Lấy tất cả các yêu cầu API
+            const promises = elements.map(async (element) => {
+                let href;
+                if ($(element).is('div')) {
+                    href = window.location.href;
+                } else if ($(element).is('a')) {
+                    href = $(element).attr('href');
+                }
+
+                // Call API để lấy dữ liệu
+                const data = await fetchPinInfor(href);
+                return data;
+            });
+
+            // Chờ tất cả các yêu cầu hoàn thành
+            const tempData = await Promise.all(promises);
+
+            // Lấy tất cả các ID và gọi API để lấy thông tin listing
+            const listingIds = tempData.map(i => i.id);
+            const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
+                listing_ids: listingIds
+            }, {
+                headers: {
+                    'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
+                }
+            });
+
+            // Xử lý dữ liệu trả về từ API
+            const jsonResponse = response.data?.results;
+
+            // Cập nhật thông tin cho tempData
+            const listings = tempData.map(function (item) {
+                const listing = jsonResponse.find(i => i.listing_id == item.id);
+                if (listing) {
+                    item.views = listing?.views || 0;
+                    item.monthSales = listing?.cached_est_mo_sales || 0;
+                    item.totalSales = listing?.cached_est_total_sales || 0;
+                    item.listingMonths = listing?.cached_listing_age_in_months || 0;
+                }
+                return item;
+            });
+
+            // Cập nhật giao diện
+            elements.forEach((element) => {
+                const id = $(element).attr('data-listing-id');
+                const data = listings.find(i => i.id == id);
+                const typeHightlight = hightlightType(data);
+                data.hightlight = typeHightlight;
+
+                $(element).removeClass('warning-pin error-pin ok-pin');
+                $(element).addClass(`${typeHightlight}-pin`);
+
+                const ButtonWrapper = $(`
+                    <div id="inject-${id}" class="saph-inject-data">
+                        <div class="saph-domain">${data?.shopName || "..."}</div>
+                        <div class="saph-stats">
+                            <div title="saved count"><i class="saic-saved"></i>  ${data?.reviews || 0}</div>
+                            <div title="reaction count"><i class="saic-reaction"></i> ${data?.favorites || 0}</div>
+                            <div title="repin count"><i class="saic-repin"></i> ${data?.monthSales || 0}</div>
+                            <div title="share count"><i class="saic-share"></i> ${data?.totalSales || 0}</div>
+                            <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
+                            <div class="sahp-custm" title="Is custom type">Type Custom</div>
+                        </div>
+                        <input class="saph-check" id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+                    </div>
+                `);
+                if ($(`#inject-${id}`).length) {
+                    $(`#inject-${id}`).replaceWith(ButtonWrapper);
+                } else {
+                    $(element).append(ButtonWrapper);
+                }
+            });
+
+            return tempData;
+        }
+
+        // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
+        const elements = $('a[data-listing-id], div[data-palette-listing-id][data-component=listing-page-image-carousel]').toArray()
+        .filter(el => {
+            const id = $(el).data('listing-id');
+
+            return visibleIds.includes(id.toString()); // Kiểm tra xem id có trong visibleIds không
+          });
+
+        const render = async () => {
+            await renderPinDetailOrRelatedPin();
+            await processBatch(elements);
+        }
+        if (elements?.length) {
+            render();
+        }
+    }, [visibleIds]);
 
     useEffect(() => {
         whitelistRef.current = whitelist;
@@ -72,7 +204,7 @@ const App = () => {
             const id = $(element).attr('data-test-pin-id');
             const checkbox = $(`#checkbox-${id}`);
             if (checkbox && !checkbox.prop('checked')) {
-                // checkbox.prop('checked', true);
+                checkbox.prop('checked', true);
                 // checkbox.trigger('change');
                 pinIds.push(id);
             }
@@ -103,95 +235,101 @@ const App = () => {
         rebuildPinState();
     }
 
-    const fetchPinInfor = async (pinId) => {
-        const response =  await axios.get(`https://www.pinterest.com/pin/${pinId}/?from-extension=true`);
+    const fetchPinInfor = async (href) => {
+        const cleanUrl = href.split('?')[0];
+        const CancelToken = axios.CancelToken;
+
+        const response =  await axios.get(`${cleanUrl}?from-extension=true`);
 
         const htmlString = response.data;
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
 
         const scripts = doc.querySelectorAll('script');
-
-        let pinData;
-        for (const script of scripts) {
-            const scriptContent = script.textContent || script.innerText;
+        const ldJsonScript = Array.from(scripts).find(script => script.type === 'application/ld+json');
+        if (ldJsonScript) {
+            // console.log('ldJsonScript', ldJsonScript.textContent);
+            const pinInfo = JSON.parse(ldJsonScript.textContent);
+            let images = [];
             try {
-                const json = JSON.parse(scriptContent);
-
-                if (json?.response?.data?.v3GetPinQuery?.data) {
-                    const pinObject = json?.response?.data?.v3GetPinQuery?.data
-                    pinData = {
-                        image: pinObject?.imageSpec_236x?.url,
-                        description: pinObject?.gridDescription,
-                        title: pinObject?.gridTitle,
-                    }
-                    break;
-                }
-
-                if (script.id === '__PWS_INITIAL_PROPS__') {
-                    if (json?.initialReduxState?.pins?.[pinId]) {
-                        const pinObject = json?.initialReduxState?.pins?.[pinId];
-                        if (pinObject?.videos) {
-                            //  console.log('pinObject', pinObject);
-                        }
-
-                        let reactionCount = 0;
-                        Object.values(pinObject?.reaction_counts || {}).map((n) => {
-                          reactionCount += n;
-                        });
-
-                        let title = pinObject?.title || "";
-                        if (!title?.length) {
-                          title = pinObject?.rich_metadata?.title?.length
-                            ? pinObject?.rich_metadata?.title
-                            : pinObject?.grid_title;
-                        }
-                        if (!title) {
-                          title = "";
-                        }
-                        let user = pinObject?.native_creator
-                            ? pinObject?.native_creator
-                            : pinObject?.closeup_attribution;
-                        
-                        let additionalImages = [];
-                        if (pinObject?.rich_metadata?.products?.[0]?.has_multi_images) {
-                            additionalImages = pinObject?.rich_metadata?.products?.[0]?.additional_images?.map(image => {
-                                return image?.canonical_images?.['736x'].url;
-                            });
-                        }
-
-                        let is_video = false;
-                        let videos = null;
-                        if (pinObject?.videos?.id) {
-                          is_video = true;
-                          videos = pinObject?.videos.video_list;
-                        }
-
-                        pinData =  {
-                            id: pinObject?.id,
-                            comment: pinObject?.aggregated_pin_data?.comment_count,
-                            createdDate: new Date(pinObject?.created_at).toISOString(),
-                            title: title,
-                            image: pinObject?.images?.['236x']?.url,
-                            additional_images: additionalImages,
-                            reaction: reactionCount,
-                            share: pinObject?.share_count ?? 0,
-                            repin: pinObject?.repin_count ?? 0,
-                            saved: pinObject?.aggregated_pin_data?.aggregated_stats?.saves,
-                            full_name: user?.full_name || "",
-                            username: user?.username || "",
-                            domain: pinObject?.domain,
-                            is_video,
-                            videos: videos
-                        }
-                        break;
-                    }                
-                }
+                images = pinInfo?.image?.slice(0, 4)?.map(i => i?.contentURL) || [];
             } catch (error) {
-                // console.log('Parse failed');
+                if (typeof pinInfo?.image === 'string') {
+                    images.push(pinInfo?.image);
+                }
+            }
+            const reviews = doc.getElementById('same-listing-reviews-tab')?.querySelector('span')?.innerHTML?.replace(/\D/g, '') || 0;
+            const favoritesAndListedDateDOM = doc.getElementsByClassName('wt-display-flex-xs wt-align-items-center wt-flex-direction-row-lg wt-flex-direction-column-xs')?.[0];
+            let listedDate;
+            let relativeTime;
+            let favorites;
+            if (favoritesAndListedDateDOM) {
+                favorites = favoritesAndListedDateDOM?.querySelector('a')?.innerHTML?.replace(/\D/g, '');
+                const rawDate = favoritesAndListedDateDOM?.querySelector('div.wt-pr-xs-2.wt-text-caption')?.innerHTML;
+                const dateMatch = (rawDate || '').match(/Listed on (\w{3} \d{1,2}, \d{4})/);
+                // console.log('favoritesAndListedDateDOM', dateMatch, rawDate);
+
+                if (dateMatch?.[1]) {
+                    let sd = (new Date(dateMatch[1])).toISOString().split("T")[0];
+                    let date = dayjs(sd);
+                    relativeTime = date.fromNow(true);
+                    listedDate = sd;
+                }
+            }
+
+            return {
+                url: cleanUrl,
+                id: pinInfo?.sku,
+                title: pinInfo?.name,
+                highPrice:pinInfo?.highPrice,
+                lowPrice: pinInfo?.lowPrice,
+                listedDate,
+                relativeTime,
+                favorites,
+                shopName: pinInfo?.brand?.name,
+                reviews,
+                images
             }
         }
-        return pinData;
+        console.log('Oops', href, scripts);
+        return {};
+
+        // Draw from DOM
+        // const carousels = doc.querySelectorAll('li.carousel-pane')
+        // const images = [];
+        // for (let i = 0; i < (carousels.length <= 4 ? carousels.length : 4); i++) {
+        //     const element = carousels[i];
+        //     const img = element.querySelector('img');
+        //     if (img) {
+        //         images.push(img.getAttribute('src'));
+        //     }
+        // }
+
+        // const priceContent = doc.querySelector('div[data-selector="price-only"]')?.querySelector('p').innerHTML || '';
+
+        // const priceMax = doc.querySelector('div[data-selector="price-only"]').querySelector('.wt-text-strikethrough').innerHTML?.replace(/[^\d,]/g, '') || 0;
+        // const price = priceContent.replace(/<.*?>/g, '')?.trim()?.replace(/[^\d,]/g, '');
+        // const title = doc.querySelector('h1[data-buy-box-listing-title="true"]')?.innerHTML?.replace(/\n/g, '').trim();
+        // const reviews = doc.getElementById('same-listing-reviews-tab')?.querySelector('span')?.innerHTML?.replace(/\D/g, '') || 0;
+        // const shopName = doc.getElementById('shop_owners_content_toggle')?.querySelector('.wt-text-heading-small.wt-line-height-tight.wt-mb-lg-1')?.innerHTML || '';
+
+        // const favoritesAndListedDateDOM = doc.getElementsByClassName('wt-display-flex-xs wt-align-items-center wt-flex-direction-row-lg wt-flex-direction-column-xs')?.[0];
+        // let listedDate;
+        // let relativeTime;
+        // let favorites;
+        // if (favoritesAndListedDateDOM) {
+        //     favorites = favoritesAndListedDateDOM?.querySelector('a')?.innerHTML?.replace(/\D/g, '');
+        //     const rawDate = favoritesAndListedDateDOM?.querySelector('div.wt-pr-xs-2.wt-text-caption')?.innerHTML;
+        //     const dateMatch = (rawDate || '').match(/Listed on (\w{3} \d{1,2}, \d{4})/);
+        //     // console.log('favoritesAndListedDateDOM', dateMatch, rawDate);
+
+        //     if (dateMatch?.[1]) {
+        //         let sd = (new Date(dateMatch[1])).toISOString().split("T")[0];
+        //         let date = dayjs(sd);
+        //         relativeTime = date.fromNow(true);
+        //         listedDate = sd;
+        //     }
+        // }
     }
 
     const reloadPins = async (pinIds) => {
@@ -235,8 +373,8 @@ const App = () => {
 
         let d = '';
         let hl = false;
-        if (pin?.createdDate?.length > 0) {
-            let sd = pin?.createdDate.split("T")[0];
+        if (pin?.listedDate) {
+            let sd = pin?.listedDate;
             const dd = dayjs(sd);
             if (_highlight && _highlight > 0) {
               const now = dayjs();
@@ -255,102 +393,9 @@ const App = () => {
         }
     }
 
-    // listen pinterest fetch data & inject checkbox
     useEffect(() => {
-        const updatePinCheckbox = async (message, sender, sendResponse) => {
-            switch (message.action) {
-                case "urlLoaded":
-                    if (isRendering.current) {
-                        return;
-                    }
-                    isRendering.current = true;
-                    console.log('render checkbox');
-                    const renderPinDetailOrRelatedPin = async () => {
-                        const element =  $('div[data-test-id="visual-content-container"]');
-                        if (!element) return;
-                        const regex = /\/pin\/(\d+)\//;
-    
-                        const match = window.location.pathname.match(regex);
-                        if (match) {
-                            const id = match[1]; // The ID is captured in the first group
-                            if (id) {
-                                $(element).attr('data-test-pin-id', id)
-                                .css('position', 'relative');
-                            }
-                        }
 
-                        const element2 =  $('div[data-test-id="flashlight-enabled-image"]');
-                        if (!element2) return;
-    
-                        const match2 = window.location.pathname.match(regex);
-                        if (match2) {
-                            const id = match2[1]; // The ID is captured in the first group
-                            if (id) {
-                                $(element2).attr('data-test-pin-id', id);                            }
-                        }
-                    }
-                    await renderPinDetailOrRelatedPin();
-                // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
-                $('div[data-test-pin-id]').each( async function (index, element) {
-                    const id = $(element).attr('data-test-pin-id');
-                    $(element).css('position', 'relative');
-                    const data = await fetchPinInfor(id);
-                    const typeHightlight = hightlightType(data);
-                    data.hightlight = typeHightlight;
-
-                    $(element).removeClass('warning-pin error-pin ok-pin');
-
-                    $(element).addClass(`${typeHightlight}-pin`);
-                    $(element).find(`#inject-${id}`).remove();
-
-                    let d = '';
-                    if (data?.createdDate?.length > 0) {
-                        let sd = data?.createdDate.split("T")[0];
-                        const dd = dayjs(sd);
-
-                        d = dd.fromNow(true); // 22 years
-                    }
-                    // data-pin=${JSON.stringify(data)}
-                    const ButtonWrapper = $(`
-                        <div id="inject-${id}" class="saph-inject-data">
-                            <div class="saph-domain">${data?.domain || "..."}</div>
-                            <div class="saph-stats">
-                                <div title="saved count"><i class="saic-saved"></i>  ${data?.saved || 0}</div>
-                                <div title="reaction count"><i class="saic-reaction"></i> ${data?.reaction || 0}</div>
-                                <div title="repin count"><i class="saic-repin"></i> ${data?.repin || 0}</div>
-                                <div title="share count"><i class="saic-share"></i> ${data?.share || 0}</div>
-                                <div class="sahp-dati" title="Date added ${data?.createdDate || ""}"><i class="saic-date"></i> ${d}</div>
-                                <div class="sahp-custm" title="Is custom type">Type Custom</div>
-                            </div>
-                                <input class="saph-check" id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
-                        </div>
-                    `);
-                    $(element).append(ButtonWrapper);
-                });
-                isRendering.current = false;
-                break;
-            }
-        };
-        const requiredProperties = ['collection', 'custom', 'idea', 'niche', 'trademark'];
-        const hasAllProperties = requiredProperties.every(prop => presetUsed.hasOwnProperty(prop));
-
-        if (!token || preset.length < 3 || !hasAllProperties) {
-            $('div[data-test-pin-id]').each( async function (index, element) {
-                const id = $(element).attr('data-test-pin-id');
-                $(element).find(`#inject-${id}`).remove();
-                $(element).removeClass('warning-pin error-pin ok-pin');
-            });
-            return;
-        }
-
-        chrome.runtime.onMessage.addListener(updatePinCheckbox);
-
-        return () => {
-            console.log('clear update pin')
-            chrome.runtime.onMessage.removeListener(updatePinCheckbox);
-        };
-    }, [pins, presetUsed, token, preset])
-
+    }, [])
     //handle checkbox
     useEffect(() => {
         const handleChangeCheckbox = async function (e, index) {
@@ -378,8 +423,9 @@ const App = () => {
 
     return (
         <div style={{position: 'fixed', bottom: '100px', right: '10px'}} >
+            {/* <div>visibleIds:  {visibleIds.join(', ')}</div> */}
             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                <Button onClick={checkAllOkPin}>Check All</Button>
+                <Button onClick={checkAllOkPin} size="small">Check All</Button>
                 <Preset isOpen={presetOpen} setOpen={setPresetOpen}></Preset>
                 <Badge size="small" count={pins.length} style={{marginTop: '10px'}}>
                     <Button style={{padding: '12px 20px'}} type="primary" size="small" onClick={showDrawer}>Spins</Button>
@@ -425,7 +471,7 @@ const App = () => {
                                 Preset
                             </Button>
                             
-                            <Button onClick={() => clearPins()}> ClearPin</Button>
+                            {/* <Button onClick={() => clearPins()}> ClearPin</Button> */}
                             {/* <Button onClick={() => setToken(null)}> ClearToken</Button> */}
                             <Settings />
                             <Button onClick={() => setWidthDrawer(width > 1200 ? 1200 : window.innerWidth)}> {width > 1200 ? <FullscreenExitOutlined /> : <FullscreenOutlined />}</Button>

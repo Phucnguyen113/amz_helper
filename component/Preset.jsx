@@ -98,24 +98,23 @@ const Preset = ({ isOpen, setOpen }) => {
     setPresetUsed(values);
   };
 
-  const Btn = () => {
-    return (
-      <Button size="small" type="primary" onClick={() => showModal()}>
-        open preset
-      </Button>
-    );
-  };
 
   useEffect(() => {
     // form.setFieldsValue(preset);
     const check = Object.keys(presetUsed).length;
+    if (!token) {
+      return;
+    }
     if (check < 5) {
         messageApi.open({
         type: "warning",
         key: "must_preset_set",
         content: (
           <>
-            You must set preset before continue. <Btn />
+            You must set preset before continue.
+             <Button size="small" type="primary" onClick={() => showModal()}>
+                open preset
+            </Button>
           </>
         ),
         duration: 9999999999,

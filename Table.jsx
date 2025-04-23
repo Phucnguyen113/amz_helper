@@ -428,7 +428,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
       <Table
         rowSelection={rowSelection}
         columns={columns}
-        dataSource={data.map(i => { return {...i, key: i.id}})}
+        dataSource={data.map(i => { return {...i, key: i.id}}).reverse()}
         className={styles.customTable}
         scroll={{ x: 'max-content' }}
         pagination={{

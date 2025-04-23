@@ -1,18 +1,21 @@
 {
-    "name": "pinterest Helper",
+    "name": "Etsy Helper",
     "version": "1.0",
     "manifest_version": 3,
+    "icons": {
+      "128": "assets/icon.png"
+    },
     "permissions": ["storage", "tabs", "webRequest", "activeTab", "privacy", "webRequestBlocking"],
     "host_permissions": [
       "http://*/*",
       "https://*/*"
     ],
     "background": {
-      "service_worker": "background.js"
+      "service_worker": "dist/background.js"
     },
     "content_scripts": [
       {
-        "matches": ["*://*.pinterest.com/*"],
+        "matches": ["*://*.etsy.com/*"],
         "js": ["dist/content.js"]
       }
     ]
