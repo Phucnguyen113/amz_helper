@@ -49,97 +49,121 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
     current: 1,
   });
 
-  const reFilterIfTabChange = (newActiveKey) => {
-    if (newActiveKey == 1) {
-      // all type pins
-      setData(pins);
-    }
+  const [scrollY, setScrollY] = useState(window.innerHeight - 250);
 
-    if (newActiveKey == 2) {
-      // ok type pins
-      const newPins = [...pins].filter(pin => {
-        if (hightlightPinType(pin) === 'ok') {
-          return true;
-        }
-      });
-      setData(newPins);
-    }
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      setSelectedRowKeys([]);
+      setItemsSelected(0);
+    };
 
-    if (newActiveKey == 3) {
-      // ok type pins
-      const newPins = [...pins].filter(pin => {
-        if (hightlightPinType(pin) === 'warning') {
-          return true;
-        }
-      });
-      setData(newPins);
-    }
+    const handleResize = () => {
+      setScrollY(window.innerHeight - 250);
+    };
 
-    if (newActiveKey == 4) {
-      // ok type pins
-      const newPins = [...pins].filter(pin => {
-        if (hightlightPinType(pin) === 'error') {
-          return true;
-        }
-      });
-      setData(newPins);
+    const syncPinListener = function (msg, sender, sendResponse) {
+      if (msg.action == 'savePinsDone') {
+        setSelectedRowKeys([]);
+        setItemsSelected(0);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    chrome.runtime.onMessage.addListener(syncPinListener);
+
+    return () =>  {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      chrome.runtime.onMessage.removeListener(syncPinListener);
     }
-  }
+  }, []);
 
   const onChangeTab = ({ target: { value } })  => {
     setActiveKey(value);
-    reFilterIfTabChange(value);
   };
 
+  const filteredData = useMemo(() => {
+    let tempData = [...pins];
+  
+    if (activeKey == 2) {
+      tempData = pins.filter(pin => hightlightPinType(pin) === 'ok');
+    } else if (activeKey == 3) {
+      tempData = pins.filter(pin => hightlightPinType(pin) === 'warning');
+    } else if (activeKey == 4) {
+      tempData = pins.filter(pin => hightlightPinType(pin) === 'error');
+    } else if (activeKey == 5) {
+      tempData = pins.filter(pin => pin?.sync_status == 'error');
+    } else if (activeKey == 6) {
+      tempData = pins.filter(pin => pin?.sync_status == 'exist');
+    }
+
+    Object.keys(filter).forEach(i => {
+      if (filter[i] && i === 'search') {
+        tempData = tempData.filter(temp =>
+          temp?.title?.toLowerCase().includes(filter[i].toLowerCase())
+        );
+      } else if (filter[i]) {
+        tempData = tempData.filter(temp => temp?.[i] == filter[i]);
+      }
+    });
+
+    console.log('after search', tempData);
+    return tempData;
+  }, [pins, filter, activeKey]);
+
+  // useEffect(() => {
+  //   const filterdata = () => {
+  //     let tempData = [...pins];
+
+  //     if (activeKey == 2) {
+  //       // ok type pins
+  //       tempData = [...pins].filter(pin => {
+  //         if (hightlightPinType(pin) === 'ok') {
+  //           return true;
+  //         }
+  //       });
+  //     }
+
+  //     if (activeKey == 3) {
+  //       // ok type pins
+  //       tempData = [...pins].filter(pin => {
+  //         if (hightlightPinType(pin) === 'warning') {
+  //           return true;
+  //         }
+  //       });
+  //     }
+
+  //     if (activeKey == 4) {
+  //       // ok type pins
+  //       tempData = [...pins].filter(pin => {
+  //         if (hightlightPinType(pin) === 'error') {
+  //           return true;
+  //         }
+  //       });
+  //     }
+
+  //     Object.keys(filter).forEach(i => {
+  //       if (filter[i] && i === 'search') {
+  //         tempData = tempData.filter(temp => {
+  //           return temp?.['title']?.toLowerCase().includes(filter[i]?.toLowerCase());
+  //         });
+  
+  //       } else if (filter[i]) {
+  //         tempData = tempData.filter(temp => {
+  //           return temp?.[i] == filter[i]
+  //         });
+  //       }
+  //     });
+  //     console.log('after search', tempData);
+  //     setData(tempData);
+  //   }
+  //   filterdata();
+  // }, [filter, pins]);
 
   useEffect(() => {
-    const filterdata = () => {
-      let tempData = [...pins];
-
-      if (activeKey == 2) {
-        // ok type pins
-        tempData = [...pins].filter(pin => {
-          if (hightlightPinType(pin) === 'ok') {
-            return true;
-          }
-        });
-      }
-
-      if (activeKey == 3) {
-        // ok type pins
-        tempData = [...pins].filter(pin => {
-          if (hightlightPinType(pin) === 'warning') {
-            return true;
-          }
-        });
-      }
-
-      if (activeKey == 4) {
-        // ok type pins
-        tempData = [...pins].filter(pin => {
-          if (hightlightPinType(pin) === 'error') {
-            return true;
-          }
-        });
-      }
-
-      Object.keys(filter).forEach(i => {
-        if (filter[i] && i === 'search') {
-          tempData = tempData.filter(temp => {
-            return temp?.['title']?.toLowerCase().includes(filter[i]?.toLowerCase());
-          });
-  
-        } else if (filter[i]) {
-          tempData = tempData.filter(temp => {
-            return temp?.[i] == filter[i]
-          });
-        }
-      });
-      console.log('after search', tempData);
-      setData(tempData);
-    }
-    filterdata();
-  }, [filter, pins]);
+    setData(filteredData);
+  }, [filteredData]);
 
   useEffect( () => {
     setSelectedPins(selectedRowKeys);
@@ -166,6 +190,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
+    columnWidth: 48
   };
 
   const deletePins = (pinIds) => {
@@ -195,11 +220,12 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         dataIndex: 'image',
         key: 'image',
         fixed: true,
+        width: 200,
         render: (_, row) => {
           const hl = hightlightPinType(row);
           return (
             <>
-              <Image  style={{width: 80}} src={_} preview={false} className={hl ? `${hl}-image` : ''}/>
+              <Image  style={{width: 200}} src={_} preview={false} className={hl ? `${hl}-image` : ''}/>
             </>
           )
         }
@@ -209,7 +235,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         dataIndex: 'title',
         key: 'title',
         fixed: true,
-        width: 350,
+        width: 300,
         render: (text, row) => {
           // let style = {};
           const hl = hightlightPinType(row);
@@ -275,7 +301,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         title: "Trademark",
         dataIndex: "trademark",
         key: "trademark",
-        width: 120,
+        width: 180,
         render: (_, row) => {
           return <SelectColumn onChange={(value) => changePresetPropPin(row.id, 'trademark', value)} allowClear options={trademarks || []} defaultValue={_}></SelectColumn>
         },
@@ -284,7 +310,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         title: "Collection",
         dataIndex: "collection",
         key: "collection",
-        width: 120,
+        width: 180,
         render: (_, row) => {
           return <SelectColumn onChange={(value) => changePresetPropPin(row.id, 'collection', value)} allowClear options={collections || []} defaultValue={_}></SelectColumn>
         },
@@ -357,9 +383,12 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
     { label: 'AllType', value: '1' },
     { label: 'Ok', value: '2' },
     { label: 'Warning', value: '3' },
-    { label: 'Blacklist', value: '4' }
+    { label: 'Blacklist', value: '4' },
+    { label: 'ErrorSync', value: '5' },
+    { label: 'ExistsSync', value: '6' }
   ];
 
+  const reversedData = useMemo(() => [...data].reverse(), [data]);
   return (
     <Wrapper>
        {loading && <div className="overlay"><Spin size="large" /></div>}
@@ -426,21 +455,26 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
       </Space>
 
       <Table
+        rowKey="id"
         rowSelection={rowSelection}
         columns={columns}
-        dataSource={data.map(i => { return {...i, key: i.id}}).reverse()}
+        dataSource={reversedData}
         className={styles.customTable}
         scroll={{ x: 'max-content' }}
         pagination={{
           position: ["bottomCenter"],
           total: data?.length || 0,
-          showTotal: (total) => `${total} Items`,
+          showTotal: (total) => `${total} Items Total`,
           onChange: (page, pageSize) => {
             console.log('change', page)
             setPaging({
               current: page,
               pageSize,
             });
+
+            setItemsSelected(0);
+
+            setSelectedRowKeys([]);
           },
           ...paging
         }}

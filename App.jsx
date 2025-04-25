@@ -1,6 +1,6 @@
-import { Badge, Button, Drawer, Space, Popconfirm } from "antd";
+import { Badge, Button, Drawer, Space, Popconfirm, InputNumber } from "antd";
 import { FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import $, { ready } from "jquery";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -41,8 +41,19 @@ const App = () => {
     const [openDrawer, setOpenDrawer] = useState(false);
     const [presetOpen, setPresetOpen] = useState(false);
     const [itemsSelected, setItemsSelected] = useState(0);
-    const [width, setWidthDrawer] = useState(1200);
+    const [width, setWidthDrawer] = useState(1300);
+    const [numberSaved, setNumberSaved] = useChromeStorageLocal("numberSaved", 0);
+
     const visibleIds = useVisibleListings(); // default threshold = 0.5
+    const [debouncedVisibleIds, setDebouncedVisibleIds] = useState([]);
+
+    useEffect(() => {
+    const timeout = setTimeout(() => {
+        setDebouncedVisibleIds(visibleIds);
+    }, 500); // chờ 500ms
+
+    return () => clearTimeout(timeout);
+    }, [visibleIds]);
 
     const {pins, setPins, token, setToken, preset, presetUsed} = useAppContext();
     const [trademarks, collections, customs, whitelist, blacklist, niches, ideas] = usePresetGrouped();
@@ -50,6 +61,9 @@ const App = () => {
     const whitelistRef = useRef(whitelist);
 
     useEffect( () => {
+        if (!token || !presetUsed) {
+            return;
+        }
         const renderPinDetailOrRelatedPin = async () => {
             const element = document.querySelector('div[data-palette-listing-id][data-component=listing-page-image-carousel]');
             if (element) {
@@ -101,10 +115,8 @@ const App = () => {
                 return data;
             });
 
-            // Chờ tất cả các yêu cầu hoàn thành
             const tempData = await Promise.all(promises);
-
-            // Lấy tất cả các ID và gọi API để lấy thông tin listing
+            console.log('data', tempData);
             const listingIds = tempData.map(i => i.id);
             const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
                 listing_ids: listingIds
@@ -113,11 +125,7 @@ const App = () => {
                     'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
                 }
             });
-
-            // Xử lý dữ liệu trả về từ API
             const jsonResponse = response.data?.results;
-
-            // Cập nhật thông tin cho tempData
             const listings = tempData.map(function (item) {
                 const listing = jsonResponse.find(i => i.listing_id == item.id);
                 if (listing) {
@@ -128,6 +136,43 @@ const App = () => {
                 }
                 return item;
             });
+
+            // ---------------------------------------------------------------------------------------------------
+            // const listingIds = [];
+            // elements.forEach(e => {
+            //     const listingId = e.getAttribute('data-listing-id');
+            //     if (!listingIds.includes(listingId) && listingId) {
+            //         listingIds.push(listingId);
+            //     }
+            // });
+
+            // const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
+            //     listing_ids: listingIds
+            // }, {
+            //     headers: {
+            //         'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
+            //     }
+            // });
+
+            // Xử lý dữ liệu trả về từ API
+            // const jsonResponse = response.data?.results;
+
+            // Cập nhật thông tin cho tempData
+            // const listings = jsonResponse.map(function (item) {
+            //     const listing = jsonResponse.find(i => i.listing_id == item.id);
+            //     return {
+            //         id: listing.listing_id,
+            //         title: listing?.title,
+            //         views: listing?.views || 0,
+            //         monthSales: listing?.cached_est_mo_sales || 0,
+            //         totalSales: listing?.cached_est_total_sales || 0,
+            //         listingMonths: listing?.cached_listing_age_in_months || 0,
+            //         favorites: listing.num_favorers || 0,
+            //         reviews: listing?.cached_est_reviews || 0,
+            //         shopName: listing?.Shop?.shop_name || '',
+
+            //     }
+            // });
 
             // Cập nhật giao diện
             elements.forEach((element) => {
@@ -150,7 +195,7 @@ const App = () => {
                             <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
                             <div class="sahp-custm" title="Is custom type">Type Custom</div>
                         </div>
-                        <input class="saph-check" id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+                        <input class="saph-check" data-json="${JSON.stringify(data)}"id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                     </div>
                 `);
                 if ($(`#inject-${id}`).length) {
@@ -168,7 +213,7 @@ const App = () => {
         .filter(el => {
             const id = $(el).data('listing-id');
 
-            return visibleIds.includes(id.toString()); // Kiểm tra xem id có trong visibleIds không
+            return visibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
           });
 
         const render = async () => {
@@ -178,7 +223,7 @@ const App = () => {
         if (elements?.length) {
             render();
         }
-    }, [visibleIds]);
+    }, [debouncedVisibleIds]);
 
     useEffect(() => {
         whitelistRef.current = whitelist;
@@ -248,7 +293,7 @@ const App = () => {
         const scripts = doc.querySelectorAll('script');
         const ldJsonScript = Array.from(scripts).find(script => script.type === 'application/ld+json');
         if (ldJsonScript) {
-            // console.log('ldJsonScript', ldJsonScript.textContent);
+            console.log('ldJsonScript', JSON.parse(ldJsonScript.textContent));
             const pinInfo = JSON.parse(ldJsonScript.textContent);
             let images = [];
             try {
@@ -281,8 +326,9 @@ const App = () => {
                 url: cleanUrl,
                 id: pinInfo?.sku,
                 title: pinInfo?.name,
-                highPrice:pinInfo?.highPrice,
-                lowPrice: pinInfo?.lowPrice,
+                highPrice:pinInfo?.offers?.highPrice,
+                lowPrice: pinInfo?.offers?.lowPrice,
+                price: pinInfo?.offers?.price,
                 listedDate,
                 relativeTime,
                 favorites,
@@ -393,9 +439,6 @@ const App = () => {
         }
     }
 
-    useEffect(() => {
-
-    }, [])
     //handle checkbox
     useEffect(() => {
         const handleChangeCheckbox = async function (e, index) {
@@ -425,6 +468,7 @@ const App = () => {
         <div style={{position: 'fixed', bottom: '100px', right: '10px'}} >
             {/* <div>visibleIds:  {visibleIds.join(', ')}</div> */}
             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                <InputNumber value={numberSaved} onChange={(value) => {setNumberSaved(value)}} step={1} min={0} max={999999} placeholder="Number of Saved" ></InputNumber>
                 <Button onClick={checkAllOkPin} size="small">Check All</Button>
                 <Preset isOpen={presetOpen} setOpen={setPresetOpen}></Preset>
                 <Badge size="small" count={pins.length} style={{marginTop: '10px'}}>
@@ -474,7 +518,7 @@ const App = () => {
                             {/* <Button onClick={() => clearPins()}> ClearPin</Button> */}
                             {/* <Button onClick={() => setToken(null)}> ClearToken</Button> */}
                             <Settings />
-                            <Button onClick={() => setWidthDrawer(width > 1200 ? 1200 : window.innerWidth)}> {width > 1200 ? <FullscreenExitOutlined /> : <FullscreenOutlined />}</Button>
+                            <Button onClick={() => setWidthDrawer(width > 1300 ? 1300 : window.innerWidth)}> {width > 1300 ? <FullscreenExitOutlined /> : <FullscreenOutlined />}</Button>
                         </Space>
                     </Space>
                 }

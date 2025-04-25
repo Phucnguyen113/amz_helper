@@ -1,5 +1,5 @@
 import { message } from "antd";
-import React, {useContext, createContext, useEffect, useRef} from "react";
+import React, {useContext, createContext, useEffect, useRef, useState} from "react";
 import { useChromeStorageLocal } from "use-chrome-storage";
 
 const AppContext = createContext({});
@@ -17,6 +17,7 @@ export const AppProvider = ({children}) => {
     const [messageApi, contextHolder] = message.useMessage();
     const [selectedPins, setSelectedPins] = useChromeStorageLocal('selectedPins', []);
     const pinsRef = useRef(pins);
+    const [syncing, setSyncing] = useState(false);
     useEffect(() => {
         pinsRef.current = pins;
     }, [pins]);
@@ -51,7 +52,7 @@ export const AppProvider = ({children}) => {
             }
             const images = [
                 pin?.image,
-                ...pin?.additional_images.splice(0, 3)
+                ...pin?.additional_images?.splice(0, 3)
             ].join(';');
 
             const data = {
@@ -95,6 +96,14 @@ export const AppProvider = ({children}) => {
                 key: token,
                 pins: pinList
             });
+        } else {
+            setSyncing(false);
+            messageApi.open({
+                type: "info",
+                content: `No Item(s) selected need to sync`,
+                key: "pin_saved",
+                duration: 6,
+            });
         }
     }
 
@@ -125,14 +134,14 @@ export const AppProvider = ({children}) => {
                 } else if (success.length > 0 && error.length > 0) {
                     messageApi.open({
                     type: "info",
-                    content: `${success.length} Item(s) saved. ${error.length} Item(s) synced error.`,
+                    content: `${success.length} Item(s) saved. ${error.length} Item(s) EXISTS ON THE SYSTEM.`,
                     key: "pin_saved",
                     duration: 6,
                     });
                 } else {
                     messageApi.open({
-                    type: "error",
-                    content: `${error.length} Item(s) synced error.`,
+                    type: "warning",
+                    content: `${error.length} Item(s) EXISTS ON THE SYSTEM.`,
                     key: "pin_saved",
                     duration: 6,
                     });
@@ -142,12 +151,31 @@ export const AppProvider = ({children}) => {
                     if (success.includes(pin.id)) {
                         return {...pin, sync_status: 'synced'}
                     } else if(error.includes(pin.id)) {
-                        return {...pin, sync_status: 'error'}
+                        return {...pin, sync_status: 'exist'}
                     }
                     return pin;
                 });
 
                 setPins(newPins);
+                setSelectedPins([]);
+                setSyncing(false);
+            }
+
+            if (msg.action == 'savePinsError') {
+                const newPins = pinsRef.current.map(pin => {
+                    if ([pin?.sync_status == 'syncing']) {
+                        return {...pin, sync_status: 'error'}
+                    }
+                    return pin;
+                });
+                setPins(newPins);
+                setSyncing(false);
+                messageApi.open({
+                    type: "error",
+                    content: `Your network is interrupted or server is dead, pls try again`,
+                    key: "pin_saved",
+                    duration: 6,
+                });
             }
         };
         chrome.runtime.onMessage.addListener(listener);
