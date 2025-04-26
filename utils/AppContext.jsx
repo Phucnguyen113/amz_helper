@@ -23,6 +23,7 @@ export const AppProvider = ({children}) => {
     }, [pins]);
 
     const syncPins = () => {
+        setSyncing(true);
         const pinsToSync = pins.filter(pin => selectedPins.includes(pin.id));
 
         const removeNoneUnicode = (str) => str.replace(/[\u0250-\ue007]/g, "-");
@@ -33,48 +34,26 @@ export const AppProvider = ({children}) => {
                 continue;
             }
 
-            let video = null;
-
-            if (pin.videos) {
-              if (pin?.videos?.V_720P) {
-                video = pin?.videos?.V_720P.url;
-              }
-              if (!video) {
-                if (pin?.videos?.V_HLSV3_WEB) {
-                  video = pin?.videos?.V_HLSV3_WEB.url;
-                }
-              }
-              if (!video) {
-                if (pin?.videos?.V_HLSV4) {
-                  video = pin?.videos?.V_HLSV4.url;
-                }
-              }
-            }
-            const images = [
-                pin?.image,
-                ...pin?.additional_images?.splice(0, 3)
-            ].join(';');
+            const images = pin?.images?.join(';');
 
             const data = {
                 id: pin.id,
-                pid: pin.id,
+                high_price: pin?.highPrice || pin?.price || 0,
+                low_price: pin?.lowPrice || pin?.price || 0,
                 title: removeNoneUnicode(pin.title?.length ? pin.title : "Untitled"),
-                date: pin.createdDate,
-                qty_pin: pin.repin,
-                qty_save: pin.saved,
-                full_name: removeNoneUnicode(pin?.full_name || "no-name"),
-                user_name: removeNoneUnicode(pin?.username || "no-username"),
-                domain: pin.domain,
-                link: `https://www.pinterest.com/pin/${pin.id}/`,
+                branch_name: pin?.shopName,
+                shop_url: pin?.shopUrl,
+                product_url: pin?.url,
+                reviews: pin?.reviews,
                 collection: pin?.collection || null,
                 trademark: pin?.trademark || null,
                 custom: Array.isArray(pin?.custom) ? pin?.custom[[0]] || '' : pin?.custom,
                 idea: Array.isArray(pin?.idea) ? pin?.idea[0] || '' : pin?.idea,
                 niche: Array.isArray(pin?.niche) ? pin?.niche[0] || '' : pin?.niche,
                 image: images,
-                video: video,
-                keyword: pin?.keyword,
-                related_keyword: pin?.relatedKeyword,
+                 // date: pin.listedDate,
+                // keyword: pin?.keyword,
+                // related_keyword: pin?.relatedKeyword,
               };
             pinList.push(data);
         }
@@ -113,14 +92,19 @@ export const AppProvider = ({children}) => {
                 const data = msg.data;
                 const success = [];
                 const error = [];
-
+               
                 for (let i = 0; i < data.length; i++) {
                     const element = data[i];
-
+                    let infomationPin = {};
+                    try {
+                        infomationPin = JSON.parse(element?.data?.information);
+                    } catch (error) {
+                        
+                    }
                     if (element?.status) {
-                        success.push(element?.data?.pid);
+                        success.push(infomationPin?.id);
                     } else {
-                        error.push(element?.data?.pid);
+                        error.push(element?.data?.id);
                     }
                 }
 
@@ -184,7 +168,7 @@ export const AppProvider = ({children}) => {
         }
     }, []);
 
-    return <AppContext.Provider value={{token, setToken, preset, setPreset, pins, setPins, messageApi, presetUsed, setPresetUsed, filter, setFilter, setSelectedPins, syncPins}} >
+    return <AppContext.Provider value={{token, setToken, preset, setPreset, pins, setPins, messageApi, presetUsed, setPresetUsed, filter, setFilter, setSelectedPins, syncPins, syncing, setSyncing}} >
         {contextHolder}
         {children}
     </AppContext.Provider>

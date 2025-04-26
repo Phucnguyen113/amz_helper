@@ -1,5 +1,5 @@
 import { Image, Select, Table, Popconfirm, Space, Button, Form, Spin, Radio } from "antd";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePresetGrouped } from "./utils/hook";
 import { SyncOutlined, InfoOutlined, CheckOutlined } from "@ant-design/icons";
 import { SelectColumn } from "./component/SelectColumn";
@@ -39,7 +39,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [activeKey, setActiveKey] = useState('1');
-  const {pins, setPins, token, setToken, preset, presetUsed, filter, setFilter, setSelectedPins, syncPins} = useAppContext();
+  const {pins, setPins, token, setToken, preset, presetUsed, filter, setFilter, setSelectedPins, syncPins, syncing} = useAppContext();
   const [loading, setLoading] = useState(false);
 
   const [data, setData] = useState(pins || []);
@@ -225,7 +225,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
           const hl = hightlightPinType(row);
           return (
             <>
-              <Image  style={{width: 200}} src={_} preview={false} className={hl ? `${hl}-image` : ''}/>
+              <Image  style={{width: 200}} src={row?.images?.[0]} preview={false} className={hl ? `${hl}-image` : ''}/>
             </>
           )
         }
@@ -243,10 +243,10 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
           //   style.color = "#e90003";
           // }
     
-          let date = row?.createdDate ? row?.createdDate.split("T")[0] : "-";
+          let date = row?.listedDate || "-";
           return (
             <div className={hl ? `${hl}-title` : ''}>
-              <a target="_blank" href={`https://www.pinterest.com/pin/${row.id}/`}>
+              <a target="_blank" href={`${row?.url}`} className="title-spin">
                 <strong className={hl ? `${hl}-title` : ''}>{text || "(Untitled)"}</strong>
               </a>
               <div>
@@ -256,16 +256,25 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
                 <span title="Date added">{date}</span>
               </div>
               <div className="table-stats">
-                <div title="domain">
-                  <i className="saic-domain"></i> {row?.domain || ""}
+                <div title="shop">
+                  <i className="saic-domain"></i> {row?.shopName || ""}
                 </div>
                 <div className="saph-sffil">
-                  <span title="saved count">
-                    <i className="saic-saved"></i> {row?.saved || 0}
+                  <span title="favorites count">
+                    <i className="saic-saved"></i> {row?.favorites || 0}
                   </span>
                   |
-                  <span title="repin count">
-                    <i className="saic-repin"></i> {row?.repin || 0}
+                  <span title="views count">
+                    <i className="fa fa-eye"></i> {row?.views || 0}
+                  </span>
+                </div>
+                <div className="saph-sffil">
+                  <span title="month sales count">
+                    <i className="fas fa-shopping-cart"></i> {row?.monthSales || 0}
+                  </span>
+                  |
+                  <span title="total sales count">
+                    <i className="fas fa-shopping-cart"></i> {row?.totalSales || 0}
                   </span>
                 </div>
               </div>
@@ -324,22 +333,22 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
           return <SelectColumn onChange={(value) => changePresetPropPin(row.id, 'custom', value)} allowClear options={customs || []} defaultValue={_}></SelectColumn>;
         },
       },
-      {
-        title: "User",
-        key: "user",
-        width: 120,
-        render: (_, row) => {
-          return (
-            <>
-              {row?.full_name}
-              <br />
-              <i>
-                <small>{row?.username}</small>
-              </i>
-            </>
-          );
-        },
-      },
+      // {
+      //   title: "User",
+      //   key: "user",
+      //   width: 120,
+      //   render: (_, row) => {
+      //     return (
+      //       <>
+      //         {row?.full_name}
+      //         <br />
+      //         <i>
+      //           <small>{row?.username}</small>
+      //         </i>
+      //       </>
+      //     );
+      //   },
+      // },
       {
         title: "",
         dataIndex: "sync",
@@ -352,6 +361,13 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
           let bg = "#fff";
           let color = "#333";
           let icon = <SyncOutlined />;
+
+          if ("exist" === row?.sync_status) {
+            bg = "#faad14";
+            color = "#fff";
+            icon = <InfoOutlined />;
+          }
+
           if ("error" === row?.sync_status) {
             bg = "red";
             color = "#fff";
@@ -398,6 +414,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
             type="primary"
             size="small"
             onClick={syncPins}
+            loading={syncing}
             disabled={!selectedRowKeys.length}
           >
             Sync
@@ -431,14 +448,6 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
             Reload
           </Button>
 
-          {/* <Tabs
-            type="card"
-            size="small"
-            onChange={onChangeTab}
-            activeKey={activeKey}
-            // onEdit={onEdit}
-            items={initialItems}
-          /> */}
           <Radio.Group
             size="small"
             options={initialItems}
@@ -460,7 +469,8 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         columns={columns}
         dataSource={reversedData}
         className={styles.customTable}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 1300, y: scrollY}}
+        virtual
         pagination={{
           position: ["bottomCenter"],
           total: data?.length || 0,

@@ -55,7 +55,7 @@ const App = () => {
     return () => clearTimeout(timeout);
     }, [visibleIds]);
 
-    const {pins, setPins, token, setToken, preset, presetUsed} = useAppContext();
+    const {pins, setPins, token, setToken, preset, presetUsed, messageApi} = useAppContext();
     const [trademarks, collections, customs, whitelist, blacklist, niches, ideas] = usePresetGrouped();
 
     const whitelistRef = useRef(whitelist);
@@ -116,7 +116,11 @@ const App = () => {
             });
 
             const tempData = await Promise.all(promises);
-            console.log('data', tempData);
+
+            // const listingIds = tempData.filter(i => !i?.cache).map(i => i.id);
+            // if (!listingIds?.length) {
+            //     return;
+            // }
             const listingIds = tempData.map(i => i.id);
             const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
                 listing_ids: listingIds
@@ -126,6 +130,7 @@ const App = () => {
                 }
             });
             const jsonResponse = response.data?.results;
+
             const listings = tempData.map(function (item) {
                 const listing = jsonResponse.find(i => i.listing_id == item.id);
                 if (listing) {
@@ -133,6 +138,7 @@ const App = () => {
                     item.monthSales = listing?.cached_est_mo_sales || 0;
                     item.totalSales = listing?.cached_est_total_sales || 0;
                     item.listingMonths = listing?.cached_listing_age_in_months || 0;
+                    item.shopUrl = `https://www.etsy.com/shop/${listing?.shop_name}`
                 }
                 return item;
             });
@@ -183,19 +189,21 @@ const App = () => {
 
                 $(element).removeClass('warning-pin error-pin ok-pin');
                 $(element).addClass(`${typeHightlight}-pin`);
+                $(element).attr('data-favorites', data?.favorites || 0);
 
                 const ButtonWrapper = $(`
                     <div id="inject-${id}" class="saph-inject-data">
                         <div class="saph-domain">${data?.shopName || "..."}</div>
                         <div class="saph-stats">
-                            <div title="saved count"><i class="saic-saved"></i>  ${data?.reviews || 0}</div>
-                            <div title="reaction count"><i class="saic-reaction"></i> ${data?.favorites || 0}</div>
-                            <div title="repin count"><i class="saic-repin"></i> ${data?.monthSales || 0}</div>
-                            <div title="share count"><i class="saic-share"></i> ${data?.totalSales || 0}</div>
+                            <div title="reviews count"><i class="saic-review"></i>  ${data?.reviews || 0}</div>
+                            <div title="views count"><i class="fa fa-eye"></i>  ${data?.views || 0}</div>
+                            <div title="favorites count"><i class="saic-saved"></i> ${data?.favorites || 0}</div>
+                            <div title="month sales count"><i class="fas fa-shopping-cart"></i> ${data?.monthSales || 0}</div>
+                            <div title="total sales count"><i class="fas fa-shopping-cart"></i> ${data?.totalSales || 0}</div>
                             <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
                             <div class="sahp-custm" title="Is custom type">Type Custom</div>
                         </div>
-                        <input class="saph-check" data-json="${JSON.stringify(data)}"id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+                        <input class="saph-check" data-json='${JSON.stringify(data)}'id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                     </div>
                 `);
                 if ($(`#inject-${id}`).length) {
@@ -212,13 +220,21 @@ const App = () => {
         const elements = $('a[data-listing-id], div[data-palette-listing-id][data-component=listing-page-image-carousel]').toArray()
         .filter(el => {
             const id = $(el).data('listing-id');
-
             return visibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
           });
 
         const render = async () => {
             await renderPinDetailOrRelatedPin();
-            await processBatch(elements);
+            try {
+                await processBatch(elements);
+            } catch (error) {
+                messageApi.open({
+                    type: "error",
+                    content: `Maybe your network is interruped, render checkboxes failed! `,
+                    key: "render_failed",
+                    duration: 6,
+                });
+            }
         }
         if (elements?.length) {
             render();
@@ -241,19 +257,28 @@ const App = () => {
 
     const clearPins = () => {
         setPins([]);
+        $('.saph-check').each(function (index, element) {
+            if ($(this).is(':checked')) {
+                $(this).prop('checked', false);
+            }
+        });
     };
 
     const checkAllOkPin = async () => {
         const pinIds = [];
         $('.ok-pin').each(function (index, element) {
-            const id = $(element).attr('data-test-pin-id');
-            const checkbox = $(`#checkbox-${id}`);
-            if (checkbox && !checkbox.prop('checked')) {
-                checkbox.prop('checked', true);
-                // checkbox.trigger('change');
-                pinIds.push(id);
+            const id = $(element).attr('data-listing-id');
+            const favorites = $(element).attr('data-favorites');
+            if (favorites >= numberSaved) {
+                const checkbox = $(`#checkbox-${id}`);
+                if (checkbox && !checkbox.prop('checked')) {
+                    checkbox.prop('checked', true);
+                    // checkbox.trigger('change');
+                    pinIds.push(id);
+                }
             }
         });
+
         const rebuildPinState = async () => {
             const url = new URL(window.location.href);
             const s = url.searchParams.get("q");
@@ -264,13 +289,18 @@ const App = () => {
             for (let i = 0; i < pinIds.length; i++) {
                 const pinId = pinIds[i];
                 if (pinId && !newPins.find(i => i.id == pinId)) {
-                    const pinInfo = await fetchPinInfor(pinId);
-                    newPins.push({
-                        ...pinInfo,
-                        ...presetUsed,
-                        keyword: s || '',
-                        relatedKeyword: rs || ''
-                    });
+                    // const pinInfo = await fetchPinInfor(pinId);
+                   try {
+                        const pinInfo = JSON.parse($(`#checkbox-${pinId}`).attr('data-json'));
+                        newPins.push({
+                            ...pinInfo,
+                            ...presetUsed,
+                            keyword: s || '',
+                            relatedKeyword: rs || ''
+                        });
+                   } catch (error) {
+
+                   }
                 }
             }
 
@@ -282,7 +312,6 @@ const App = () => {
 
     const fetchPinInfor = async (href) => {
         const cleanUrl = href.split('?')[0];
-        const CancelToken = axios.CancelToken;
 
         const response =  await axios.get(`${cleanUrl}?from-extension=true`);
 
@@ -293,7 +322,6 @@ const App = () => {
         const scripts = doc.querySelectorAll('script');
         const ldJsonScript = Array.from(scripts).find(script => script.type === 'application/ld+json');
         if (ldJsonScript) {
-            console.log('ldJsonScript', JSON.parse(ldJsonScript.textContent));
             const pinInfo = JSON.parse(ldJsonScript.textContent);
             let images = [];
             try {
@@ -334,7 +362,8 @@ const App = () => {
                 favorites,
                 shopName: pinInfo?.brand?.name,
                 reviews,
-                images
+                images,
+                cache: response?.cached
             }
         }
         console.log('Oops', href, scripts);
@@ -379,17 +408,71 @@ const App = () => {
     }
 
     const reloadPins = async (pinIds) => {
-        const newPins = await Promise.all(
-            pins.map(async (pin) => {
-                if (pinIds.includes(pin.id)) {
-                    const pinItem = await fetchPinInfor(pin.id);
-                    return { ...pin, ...pinItem };
-                }
-                return pin; 
-            })
-        );
-        setPins(newPins);
-    }
+        const batchSize = 5; // Số lượng tối đa mỗi batch là 5
+        const newPins = [...pins]; // Giữ lại bản sao của pins hiện tại
+
+        // Hàm giúp chia pinIds thành các batch nhỏ
+        const chunkArray = (arr, size) => {
+            const result = [];
+            for (let i = 0; i < arr.length; i += size) {
+                result.push(arr.slice(i, i + size));
+            }
+            return result;
+        };
+
+        // Chia pinIds thành các batch 5
+        const batchedPinIds = chunkArray(pinIds, batchSize);
+
+        try {
+            for (const batch of batchedPinIds) {
+                const batchResults = await Promise.all(
+                    batch.map(async (pinId) => {
+                        const pin = pins.find(p => p.id === pinId); // Lấy pin từ danh sách ban đầu
+                        if (pin) {
+                            const pinItem = await fetchPinInfor(pin.url); // Gọi API lấy thông tin chi tiết của pin
+                            return { ...pin, ...pinItem }; // Cập nhật pin với dữ liệu mới
+                        }
+                        return pin; // Nếu không tìm thấy pin, trả về pin cũ
+                    })
+                );
+                const tempData = batchResults;
+    
+                const listingIds = tempData.map(i => i.id);
+                const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
+                    listing_ids: listingIds
+                }, {
+                    headers: {
+                        'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
+                    }
+                });
+                const jsonResponse = response.data?.results;
+
+                const listings = tempData.map(function (item) {
+                    const listing = jsonResponse.find(i => i.listing_id == item.id);
+                    if (listing) {
+                        item.views = listing?.views || 0;
+                        item.monthSales = listing?.cached_est_mo_sales || 0;
+                        item.totalSales = listing?.cached_est_total_sales || 0;
+                        item.listingMonths = listing?.cached_listing_age_in_months || 0;
+                        item.shopUrl = `https://www.etsy.com/shop/${listing?.shop_name}`
+                    }
+                    return item;
+                });
+
+                // Cập nhật lại pins sau mỗi batch
+                listings.forEach((updatedPin) => {
+                    const index = newPins.findIndex((pin) => pin.id === updatedPin.id);
+                    if (index !== -1) {
+                        newPins[index] = updatedPin; // Cập nhật pin sau khi có dữ liệu mới
+                    }
+                });
+            }
+        } catch (error) {
+            console.log('reload pins failed', )
+        }
+        console.log('reload', newPins)
+        setPins(newPins); // Cập nhật lại toàn bộ danh sách pins
+    };
 
     const showDrawer = () => {
         setOpenDrawer(true);
@@ -443,12 +526,17 @@ const App = () => {
     useEffect(() => {
         const handleChangeCheckbox = async function (e, index) {
             const pinId = $(e.currentTarget).attr('data-id');
-            console.log('change', pinId, pins);
             if (e.currentTarget.checked) {
                 const url = new URL(window.location.href);
                 const s = url.searchParams.get("q");
                 const rs = url.searchParams.get("rs");
-                const pinInfor = await fetchPinInfor(pinId);
+                // const pinInfor = await fetchPinInfor(pinId);
+                let pinInfor;
+                try {
+                    pinInfor = JSON.parse($(e.currentTarget).attr('data-json'));
+                } catch (error) {
+                    console.log('parse error', $(e.currentTarget).attr('data-json'));
+                }
                 console.log('click', {...pinInfor, ...presetUsed});
                 const newPin = {...pinInfor, ...presetUsed, keyword: (s || ''), relatedKeyword: (rs || '')};
                 setPins([...pinsRef.current, newPin]);
@@ -465,7 +553,7 @@ const App = () => {
     }, [presetUsed])
 
     return (
-        <div style={{position: 'fixed', bottom: '100px', right: '10px'}} >
+        <div style={{position: 'fixed', bottom: '100px', right: '10px', zIndex: 10}} >
             {/* <div>visibleIds:  {visibleIds.join(', ')}</div> */}
             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                 <InputNumber value={numberSaved} onChange={(value) => {setNumberSaved(value)}} step={1} min={0} max={999999} placeholder="Number of Saved" ></InputNumber>
@@ -477,7 +565,7 @@ const App = () => {
                 <Popconfirm
                     title="Delete all!"
                     description="Are you sure to delete all pin items?"
-                    onConfirm={() => setPins([])}
+                    onConfirm={() => clearPins()}
                     onCancel={() => { }}
                     okText="Yes"
                     cancelText="No"

@@ -94,14 +94,15 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
     if (msg.action === 'savePins') {
         const pins = msg.pins;
-        const url = `https://evo.evolutee.net/api/save-pinterest2?key=${encodeURIComponent(msg.key)}`
+        const body = {data: pins};
+        const url = `https://evo.evolutee.net/api/v4/etsy/save?key=${encodeURIComponent(msg.key)}`
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(pins)
+                body: JSON.stringify(body)
             })
             if (!response.ok) {
                 throw new Error("Sync failed", response);
@@ -116,6 +117,10 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
             });
         } catch (error) {
             console.log('err', error);
+            chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'savePinsError',
+                status: true,
+            });
         }
     }
 })
