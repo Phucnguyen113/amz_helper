@@ -1,4 +1,4 @@
-import { Badge, Button, Drawer, Space, Popconfirm, InputNumber } from "antd";
+import { Badge, Button, Drawer, Space, Popconfirm, InputNumber, Spin } from "antd";
 import { FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import $, { ready } from "jquery";
@@ -36,6 +36,9 @@ dayjs.updateLocale("en", {
     yy: "%dY",
   },
 });
+window.addEventListener('beforeunload', () => {
+    sessionStorage.setItem('scrollPosition', window.scrollY);
+});
 
 const App = () => {
     const [openDrawer, setOpenDrawer] = useState(false);
@@ -44,8 +47,9 @@ const App = () => {
     const [width, setWidthDrawer] = useState(1300);
     const [numberSaved, setNumberSaved] = useChromeStorageLocal("numberSaved", 0);
 
+    const [isRender, setIsRender] = useState(false);
     const visibleIds = useVisibleListings(); // default threshold = 0.5
-    const [debouncedVisibleIds, setDebouncedVisibleIds] = useState([]);
+    const [debouncedVisibleIds, setDebouncedVisibleIds] = useState([]);;
 
     useEffect(() => {
     const timeout = setTimeout(() => {
@@ -60,8 +64,40 @@ const App = () => {
 
     const whitelistRef = useRef(whitelist);
 
+    useEffect(() => {
+        const renderPinDetailOrRelatedPin = async () => {
+            const element = document.querySelector('div[data-palette-listing-id][data-component=listing-page-image-carousel]');
+            if (element) {
+                const id  = element.getAttribute('data-palette-listing-id');
+                if (id) {
+                    $(element).attr('data-listing-id', id);
+
+                }
+            }
+
+            const element2 = document.querySelectorAll('li[data-clg-id="WtListItem"] a');
+            if (element2.length) {
+                for (let i = 0; i < element2.length; i++) {
+                    const element = element2[i]; // a tag
+                    const href = $(element).attr('href');
+                    const match = href.match(/\/listing\/(\d+)/);
+                    if (match) {
+                        const listingId = match[1];
+                        $(element).attr('data-listing-id', listingId);
+                    }
+                }
+                const likeButtons = document.getElementsByClassName('implicit-comparison-favorite-button wt-position-absolute wt-position-top wt-position-right');
+
+                for (let i = 0; i < likeButtons.length; i++) {
+                    const element = likeButtons[i];
+                    element.remove();
+                }
+            }
+        }
+        renderPinDetailOrRelatedPin();
+    })
     useEffect( () => {
-        if (!token || !presetUsed) {
+        if (!token || !presetUsed || Object.keys(presetUsed).length == 0) {
             return;
         }
         const renderPinDetailOrRelatedPin = async () => {
@@ -126,7 +162,7 @@ const App = () => {
                 listing_ids: listingIds
             }, {
                 headers: {
-                    'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
+                    'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTQwMTg1NSwiZXhwIjoxNzQ2MDA2NjU1LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.vHe5i9CqdRxmuDXJOb9IUIxCb4ggggm0iExxn-jL-WC7AizsMPNPJYt7TLbQHAKYsDJA16lkBxDFOT91DLbRJA'
                 }
             });
             const jsonResponse = response.data?.results;
@@ -189,7 +225,7 @@ const App = () => {
 
                 $(element).removeClass('warning-pin error-pin ok-pin');
                 $(element).addClass(`${typeHightlight}-pin`);
-                $(element).attr('data-favorites', data?.favorites || 0);
+                $(element).attr('data-total-sales', data?.totalSales || 0);
 
                 const ButtonWrapper = $(`
                     <div id="inject-${id}" class="saph-inject-data">
@@ -206,6 +242,7 @@ const App = () => {
                         <input class="saph-check" data-json='${JSON.stringify(data)}'id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                     </div>
                 `);
+
                 if ($(`#inject-${id}`).length) {
                     $(`#inject-${id}`).replaceWith(ButtonWrapper);
                 } else {
@@ -219,11 +256,12 @@ const App = () => {
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
         const elements = $('a[data-listing-id], div[data-palette-listing-id][data-component=listing-page-image-carousel]').toArray()
         .filter(el => {
-            const id = $(el).data('listing-id');
-            return visibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
+            const id = $(el).data('listing-id') || $(el).attr('data-palette-listing-id');
+            return debouncedVisibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
           });
 
         const render = async () => {
+            setIsRender(true);
             await renderPinDetailOrRelatedPin();
             try {
                 await processBatch(elements);
@@ -234,6 +272,8 @@ const App = () => {
                     key: "render_failed",
                     duration: 6,
                 });
+            } finally {
+                setIsRender(false);
             }
         }
         if (elements?.length) {
@@ -268,8 +308,8 @@ const App = () => {
         const pinIds = [];
         $('.ok-pin').each(function (index, element) {
             const id = $(element).attr('data-listing-id');
-            const favorites = $(element).attr('data-favorites');
-            if (favorites >= numberSaved) {
+            const totalSales = $(element).attr('data-total-sales');
+            if (totalSales >= numberSaved) {
                 const checkbox = $(`#checkbox-${id}`);
                 if (checkbox && !checkbox.prop('checked')) {
                     checkbox.prop('checked', true);
@@ -442,7 +482,7 @@ const App = () => {
                     listing_ids: listingIds
                 }, {
                     headers: {
-                        'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
+                        'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTQwMTg1NSwiZXhwIjoxNzQ2MDA2NjU1LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.vHe5i9CqdRxmuDXJOb9IUIxCb4ggggm0iExxn-jL-WC7AizsMPNPJYt7TLbQHAKYsDJA16lkBxDFOT91DLbRJA'
                     }
                 });
                 const jsonResponse = response.data?.results;
@@ -542,7 +582,8 @@ const App = () => {
                 setPins([...pinsRef.current, newPin]);
                 // setPins([...pinsRef.current, {...pinInfor, ...presetUsed, keyword: (s || ''), relatedKeyword: (rs || '')}]);
             } else {
-                setPins(prev => prev.filter(p => p.id !== pinId));
+                const newPins = [...pinsRef.current].filter(p => p.id !== pinId);
+                setPins(newPins);
             }
          };
         $(document).on('change', '.saph-check', handleChangeCheckbox)
@@ -555,6 +596,9 @@ const App = () => {
     return (
         <div style={{position: 'fixed', bottom: '100px', right: '10px', zIndex: 10}} >
             {/* <div>visibleIds:  {visibleIds.join(', ')}</div> */}
+            <div style={{marginBottom: '10px'}}>
+                {isRender ? <Spin size="large" /> : null}
+            </div>
             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                 <InputNumber value={numberSaved} onChange={(value) => {setNumberSaved(value)}} step={1} min={0} max={999999} placeholder="Number of Saved" ></InputNumber>
                 <Button onClick={checkAllOkPin} size="small">Check All</Button>
@@ -602,9 +646,7 @@ const App = () => {
                                 >
                                 Preset
                             </Button>
-                            
-                            {/* <Button onClick={() => clearPins()}> ClearPin</Button> */}
-                            {/* <Button onClick={() => setToken(null)}> ClearToken</Button> */}
+
                             <Settings />
                             <Button onClick={() => setWidthDrawer(width > 1300 ? 1300 : window.innerWidth)}> {width > 1300 ? <FullscreenExitOutlined /> : <FullscreenOutlined />}</Button>
                         </Space>
@@ -618,7 +660,6 @@ const App = () => {
                             reloadPins={reloadPins}
                         /> 
                         : <TokenSettings />}
-                
             </Drawer>
         </div>
     );

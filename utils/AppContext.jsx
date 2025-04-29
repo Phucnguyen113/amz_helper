@@ -58,16 +58,14 @@ export const AppProvider = ({children}) => {
             pinList.push(data);
         }
 
-        console.log('sync pins', pinList);
-        const willSyncIds = pinList.map((i) => i.pid);
-        setPins(prev => {
-            return prev.map(pin => {
-                if (willSyncIds.includes(pin.id)) {
-                    return {...pin, sync_status: 'syncing'}
-                }
-                return pin;
-            })
-        });
+        const willSyncIds = pinList.map((i) => i.id);
+        const newPins = [...pinsRef.current].map(pin => {
+            if (willSyncIds.includes(pin.id)) {
+                return {...pin, sync_status: 'syncing'}
+            }
+            return pin;
+        })
+        setPins(newPins);
 
         if (pinList.length) {
             chrome.runtime.sendMessage({
@@ -146,12 +144,13 @@ export const AppProvider = ({children}) => {
             }
 
             if (msg.action == 'savePinsError') {
-                const newPins = pinsRef.current.map(pin => {
-                    if ([pin?.sync_status == 'syncing']) {
+                const newPins = [...pinsRef.current].map(pin => {
+                    if (pin?.sync_status == 'syncing') {
                         return {...pin, sync_status: 'error'}
                     }
                     return pin;
                 });
+
                 setPins(newPins);
                 setSyncing(false);
                 messageApi.open({

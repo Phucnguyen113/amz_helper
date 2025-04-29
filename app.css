@@ -199,3 +199,8 @@
 .wt-card.wt-card--transparent a.wt-card__action-link:hover {
   inset: 0!important;
 }
+
+.ant-message-custom-content.ant-message-warning {
+  color: #faad14;
+  font-weight: bold;
+}

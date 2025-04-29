@@ -1,6 +1,6 @@
 chrome.webRequest.onCompleted.addListener(
     (details) => {
-        // console.log(details, 123);
+        // console.log(details, details?.url);
         if (
             !["xmlhttprequest"].includes(details.type) ||
             !details.url.includes("etsy.")
@@ -8,11 +8,12 @@ chrome.webRequest.onCompleted.addListener(
         ) {
             return;
         }
-
-        chrome.tabs.sendMessage(details.tabId, {
-            action: "urlLoaded",
-            url: details.url,
-        });
+        // if (details?.url?.includes('search_async_recs')) {
+        //     chrome.tabs.sendMessage(details.tabId, {
+        //         action: "urlLoaded",
+        //         url: details.url,
+        //     });
+        // }
     },
     { urls: ["<all_urls>"] }
 );
@@ -117,10 +118,12 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
             });
         } catch (error) {
             console.log('err', error);
-            chrome.tabs.sendMessage(sender.tab.id, {
-                action: 'savePinsError',
-                status: true,
-            });
+            setTimeout(() => {
+                chrome.tabs.sendMessage(sender.tab.id, {
+                    action: 'savePinsError',
+                    status: true,
+                });
+            }, 500)
         }
     }
 })

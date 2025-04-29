@@ -122,7 +122,7 @@ const Preset = ({ isOpen, setOpen }) => {
     } else {
         messageApi.destroy("must_preset_set");
     }
-  }, [presetUsed]);
+  }, [presetUsed, token]);
 
   return (
     <Wrapper className="saph-toolbar">

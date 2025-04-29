@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export default function useVisibleListings(threshold = 0.7) {
+export default function useVisibleListings(threshold = 0.5) {
   const [visibleIds, setVisibleIds] = useState([]);
 
   useEffect(() => {
@@ -30,19 +30,14 @@ export default function useVisibleListings(threshold = 0.7) {
         let changed = false;
 
         entries.forEach((entry) => {
-          const id =
-            entry.target.getAttribute('data-listing-id');
+          let id =
+            entry.target.getAttribute('data-listing-id') ||  entry.target.getAttribute('data-palette-listing-id');
 
           if (!id) return;
 
           if (entry.isIntersecting) {
             if (!visibleMap.has(id)) {
               visibleMap.set(id, true);
-              changed = true;
-            }
-          } else {
-            if (visibleMap.has(id)) {
-              visibleMap.delete(id);
               changed = true;
             }
           }
