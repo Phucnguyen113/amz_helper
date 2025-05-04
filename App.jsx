@@ -17,6 +17,7 @@ import Preset from "./component/Preset";
 import { usePresetGrouped } from "./utils/hook";
 import useVisibleListings from "./utils/visibleListings";
 
+const xToken = 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTk3NTA5OSwiZXhwIjoxNzQ2NTc5ODk5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.kofWvmCO5nlTrb-xH3KVFDAReSRtowDSJhxgDsZGaaj1vltXyqkfS5AGRI1zsV6fS-ai8otzM0DaYTi1S76w9Q';
 dayjs.extend(relativeTime);
 dayjs.extend(updateLocale);
 dayjs.updateLocale("en", {
@@ -95,7 +96,14 @@ const App = () => {
             }
         }
         renderPinDetailOrRelatedPin();
+
+        const likeButtons = document.getElementsByClassName('v2-listing-card__actions wt-z-index-1 wt-position-absolute');
+        for (let i = 0; i < likeButtons.length; i++) {
+            const element = likeButtons[i];
+            element.remove();
+        }
     })
+
     useEffect( () => {
         if (!token || !presetUsed || Object.keys(presetUsed).length == 0) {
             return;
@@ -162,7 +170,7 @@ const App = () => {
                 listing_ids: listingIds
             }, {
                 headers: {
-                    'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTQwMTg1NSwiZXhwIjoxNzQ2MDA2NjU1LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.vHe5i9CqdRxmuDXJOb9IUIxCb4ggggm0iExxn-jL-WC7AizsMPNPJYt7TLbQHAKYsDJA16lkBxDFOT91DLbRJA'
+                    'X-Access-Token': xToken
                 }
             });
             const jsonResponse = response.data?.results;
@@ -220,7 +228,9 @@ const App = () => {
             elements.forEach((element) => {
                 const id = $(element).attr('data-listing-id');
                 const data = listings.find(i => i.id == id);
-                const typeHightlight = hightlightType(data);
+                const {typeHightlight, match} = hightlightType(data);
+
+                console.log('typeHightlight', typeHightlight, match, hightlightType(data));
                 data.hightlight = typeHightlight;
 
                 $(element).removeClass('warning-pin error-pin ok-pin');
@@ -237,6 +247,7 @@ const App = () => {
                             <div title="month sales count"><i class="fas fa-shopping-cart"></i> ${data?.monthSales || 0}</div>
                             <div title="total sales count"><i class="fas fa-shopping-cart"></i> ${data?.totalSales || 0}</div>
                             <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
+                            ${match ? `<div class="hl-tag">${match}</div>`: ''}
                             <div class="sahp-custm" title="Is custom type">Type Custom</div>
                         </div>
                         <input class="saph-check" data-json='${JSON.stringify(data)}'id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
@@ -306,7 +317,7 @@ const App = () => {
 
     const checkAllOkPin = async () => {
         const pinIds = [];
-        $('.ok-pin').each(function (index, element) {
+        $('.ok-pin,.whitelist-pin').each(function (index, element) {
             const id = $(element).attr('data-listing-id');
             const totalSales = $(element).attr('data-total-sales');
             if (totalSales >= numberSaved) {
@@ -482,7 +493,7 @@ const App = () => {
                     listing_ids: listingIds
                 }, {
                     headers: {
-                        'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTQwMTg1NSwiZXhwIjoxNzQ2MDA2NjU1LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.vHe5i9CqdRxmuDXJOb9IUIxCb4ggggm0iExxn-jL-WC7AizsMPNPJYt7TLbQHAKYsDJA16lkBxDFOT91DLbRJA'
+                        'X-Access-Token': xToken
                     }
                 });
                 const jsonResponse = response.data?.results;
@@ -524,43 +535,69 @@ const App = () => {
 
     const hightlightType = (pin) => {
         const { _highlight } = presetUsed;
+
         if (!pin) {
-            return;
+            return { typeHightlight: '', match: '' };
         }
 
         if (!pin.title) {
-            return 'warning';
+            return { typeHightlight: 'warning', match: '' };
         }
-
+    
+        // Kiểm tra blacklist
         if (pin.title && blacklist?.length) {
+            const match = [];
             for (let index = 0; index < blacklist.length; index++) {
-                if (pin.title.toLowerCase().includes(blacklist[index])) {
-                    return 'error';
+                if (match.length === 2) {
+                    break;
                 }
+                if (pin.title.toLowerCase().includes(blacklist[index])) {
+                    match.push(blacklist[index]);
+                }
+            }
+            if (match.length > 0) {
+                return { typeHightlight: 'error', match: match.join(', ')};
+            }
+        }
+        console.log('qwewqeq', whitelist);
+        // Kiểm tra whitelist
+        if (pin.title && whitelist?.length) {
+            const match = [];
+            for (let index = 0; index < whitelist.length; index++) {
+                if (match.length === 2) {
+                    break;
+                }
+
+                if (pin.title.toLowerCase().includes(whitelist[index])) {
+                    match.push(whitelist[index]);
+                }
+            }
+            if (match.length > 0) {
+                return { typeHightlight: 'whitelist', match: match.join(', ')};
             }
         }
 
         let d = '';
         let hl = false;
+    
+        // Kiểm tra listedDate
         if (pin?.listedDate) {
             let sd = pin?.listedDate;
             const dd = dayjs(sd);
             if (_highlight && _highlight > 0) {
-              const now = dayjs();
-              const diff = now.diff(dd, "month", true);
-              if (diff <= _highlight) {
-                hl = true;
-                return'ok'
-              }
+                const now = dayjs();
+                const diff = now.diff(dd, "month", true);
+                if (diff <= _highlight) {
+                    hl = true;
+                    return { typeHightlight: 'ok', match: '' };
+                }
             }
             d = dd.fromNow(true); // 22 years
         }
 
-        if (pin.title && whitelist?.includes(pin.title)) {
-            hl = true;
-            return 'ok'
-        }
+        return { typeHightlight: '', match: '' };
     }
+    
 
     //handle checkbox
     useEffect(() => {

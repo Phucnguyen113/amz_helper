@@ -87,11 +87,20 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
     let tempData = [...pins];
   
     if (activeKey == 2) {
-      tempData = pins.filter(pin => hightlightPinType(pin) === 'ok');
+      tempData = pins.filter(pin => {
+        const {typeHightlight} = hightlightPinType(pin);
+        return  typeHightlight === 'ok' || typeHightlight === 'whitelist';
+      });
     } else if (activeKey == 3) {
-      tempData = pins.filter(pin => hightlightPinType(pin) === 'warning');
+      tempData = pins.filter(pin => {
+        const {typeHightlight} = hightlightPinType(pin);
+        return typeHightlight === 'warning';
+      });
     } else if (activeKey == 4) {
-      tempData = pins.filter(pin => hightlightPinType(pin) === 'error');
+      tempData = pins.filter(pin => {
+        const {typeHightlight} = hightlightPinType(pin);
+        return typeHightlight === 'error';
+      });
     } else if (activeKey == 5) {
       tempData = pins.filter(pin => pin?.sync_status == 'error');
     } else if (activeKey == 6) {
@@ -222,10 +231,10 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         fixed: true,
         width: 200,
         render: (_, row) => {
-          const hl = hightlightPinType(row);
+          const {typeHightlight} = hightlightPinType(row);
           return (
             <>
-              <Image  style={{width: 200}} src={row?.images?.[0]} preview={false} className={hl ? `${hl}-image` : ''}/>
+              <Image  style={{width: 200}} src={row?.images?.[0]} preview={false} className={typeHightlight ? `${typeHightlight}-image` : ''}/>
             </>
           )
         }
@@ -238,16 +247,16 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         width: 300,
         render: (text, row) => {
           // let style = {};
-          const hl = hightlightPinType(row);
+          const {typeHightlight} = hightlightPinType(row);
           // if (hl) {
           //   style.color = "#e90003";
           // }
     
           let date = row?.listedDate || "-";
           return (
-            <div className={hl ? `${hl}-title` : ''}>
+            <div className={typeHightlight ? `${typeHightlight}-title` : ''}>
               <a target="_blank" href={`${row?.url}`} className="title-spin">
-                <strong className={hl ? `${hl}-title` : ''}>{text || "(Untitled)"}</strong>
+                <strong className={typeHightlight ? `${typeHightlight}-title` : ''}>{text || "(Untitled)"}</strong>
               </a>
               <div>
                 <i>#{row.id}</i>
@@ -322,6 +331,20 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
         width: 180,
         render: (_, row) => {
           return <SelectColumn onChange={(value) => changePresetPropPin(row.id, 'collection', value)} allowClear options={collections || []} defaultValue={_}></SelectColumn>
+        },
+      },
+      {
+        title: "Type Tag",
+        dataIndex: "tag",
+        key: "tag",
+        width: 180,
+        render: (_, row) => {
+          const options = [
+            {label: 'black 2D', value: 'black 2D'},
+            {label: 'white 2D', value: 'white 2D'},
+            {label: '3D style', value: '3D style'},
+          ];
+          return <SelectColumn onChange={(value) => changePresetPropPin(row.id, 'tag', value)} allowClear options={options} defaultValue={_}></SelectColumn>
         },
       },
       {

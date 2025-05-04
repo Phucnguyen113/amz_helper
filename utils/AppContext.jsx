@@ -46,6 +46,7 @@ export const AppProvider = ({children}) => {
                 product_url: pin?.url,
                 reviews: pin?.reviews,
                 collection: pin?.collection || null,
+                tag: pin?.tag || null,
                 trademark: pin?.trademark || null,
                 custom: Array.isArray(pin?.custom) ? pin?.custom[[0]] || '' : pin?.custom,
                 idea: Array.isArray(pin?.idea) ? pin?.idea[0] || '' : pin?.idea,

@@ -40,10 +40,12 @@ const Preset = ({ isOpen, setOpen }) => {
     }, [presetUsed, niches]);
 
     const fetchQuotes = async () => {
-      const url = `https://evo.evolutee.net/api/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
+      const url = `https://evo.evolutee.net/api/v4/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
       try {
         const quotes = await (await fetch(url)).json();
-        console.log(quotes);
+        if (quotes?.status === false) {
+          return;
+        }
         setQuotes(quotes.data);
       } catch (error) {
         setQuotes([]);
@@ -51,7 +53,6 @@ const Preset = ({ isOpen, setOpen }) => {
     }
 
     useEffect(() => {
-      console.log('niche change', niche);
       if (niche) {
         fetchQuotes();
       }
@@ -103,6 +104,7 @@ const Preset = ({ isOpen, setOpen }) => {
     // form.setFieldsValue(preset);
     const check = Object.keys(presetUsed).length;
     if (!token) {
+      messageApi.destroy("must_preset_set");
       return;
     }
     if (check < 5) {
@@ -209,6 +211,26 @@ const Preset = ({ isOpen, setOpen }) => {
             </Col>
             {/* <Col span={12}></Col> */}
           </Row>
+
+          <Form.Item
+            name={"tag"}
+            label={"Type Tag"}
+            rules={[
+              {
+                required: true,
+              },
+            ]}
+          >
+            <Select
+              placeholder="Type Tag"
+              allowClear
+              options={[
+                {label: 'black 2D', value: 'black 2D'},
+                {label: 'white 2D', value: 'white 2D'},
+                {label: '3D style', value: '3D style'},
+              ]}
+            />
+          </Form.Item>
 
           <Form.Item
             name={"custom"}

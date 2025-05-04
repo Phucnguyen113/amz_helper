@@ -17,7 +17,7 @@ chrome.webRequest.onCompleted.addListener(
     },
     { urls: ["<all_urls>"] }
 );
-console.log('work');
+console.log('workkk');
 // chrome.runtime.onInstalled.addListener(() => {
 //     // Đợi 1s cho content script inject xong
 //     chrome.alarms.create("trigger_reload", { delayInMinutes: 0.016 });
@@ -35,22 +35,24 @@ console.log('work');
 
 const fetchPreset = async (key) => {
     const urls = [
-        `https://evo.evolutee.net/api/get-info?key=${encodeURIComponent(key)}`,
-        `https://evo.evolutee.net/api/get-niche?key=${encodeURIComponent(key)}`,
-        `https://evo.evolutee.net/api/get-idea?key=${encodeURIComponent(key)}`
+        `https://evo.evolutee.net/api/v4/get-info?key=${encodeURIComponent(key)}`,
+        `https://evo.evolutee.net/api/v4/get-niche?key=${encodeURIComponent(key)}`,
+        `https://evo.evolutee.net/api/v4/get-idea?key=${encodeURIComponent(key)}`
     ];
 
     const responses = await Promise.all(urls.map(url => fetch(url)));
 
     const data = await Promise.all(responses.map(response => response.json()));
-
+    if (data.every(i => i.status === false)) {
+        throw new Error('Invalid key');
+    }
     console.log('Dữ liệu từ get-info:', data[0]);
     console.log('Dữ liệu từ get-niche:', data[1]);
     console.log('Dữ liệu từ get-idea:', data[2]);
     //fetch niche & quotes
     const nichesList = await Promise.all(
         (data[2] || []).map(async item => {
-            const url = `https://evo.evolutee.net/api/get-niche-by-idea?key=${encodeURIComponent(key)}&idea_id=${item.id}`;
+            const url = `https://evo.evolutee.net/api/v4/get-niche-by-idea?key=${encodeURIComponent(key)}&idea_id=${item.id}`;
             try {
                 const niches = await (await fetch(url)).json();
                 return {
@@ -80,14 +82,20 @@ const fetchPreset = async (key) => {
 
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
     if (msg.action === 'fetchPreset') {
-
-        const {status , data} = await fetchPreset(msg.key);
-
-        chrome.tabs.sendMessage(sender.tab.id, {
-            action: 'fetchPresetDone',
-            status: status,
-            data: data
-        });
+        try {
+            const {status , data} = await fetchPreset(msg.key);
+            chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'fetchPresetDone',
+                status: status,
+                data: data
+            });
+        } catch (error) {
+            chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'fetchPresetDone',
+                status: false,
+                data: [],
+            });
+        }
     }
 })
 
