@@ -1,11 +1,11 @@
 {
-    "name": "Etsy Helper",
+    "name": "Amazon Helper",
     "version": "1.0",
     "manifest_version": 3,
     "icons": {
       "128": "assets/icon.png"
     },
-    "permissions": ["storage", "tabs", "webRequest", "activeTab", "privacy", "webRequestBlocking"],
+    "permissions": ["storage", "tabs", "webRequest", "activeTab", "privacy", "webRequestBlocking", "cookies"],
     "host_permissions": [
       "http://*/*",
       "https://*/*"
@@ -15,7 +15,7 @@
     },
     "content_scripts": [
       {
-        "matches": ["*://*.etsy.com/*"],
+        "matches": ["*://*.amazon.com/*"],
         "js": ["dist/content.js"]
       }
     ]

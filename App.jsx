@@ -67,41 +67,19 @@ const App = () => {
 
     useEffect(() => {
         const renderPinDetailOrRelatedPin = async () => {
-            const element = document.querySelector('div[data-palette-listing-id][data-component=listing-page-image-carousel]');
-            if (element) {
-                const id  = element.getAttribute('data-palette-listing-id');
-                if (id) {
-                    $(element).attr('data-listing-id', id);
+            const elements = document.querySelectorAll('[data-csa-c-item-type="asin"]')
 
-                }
-            }
-
-            const element2 = document.querySelectorAll('li[data-clg-id="WtListItem"] a');
-            if (element2.length) {
-                for (let i = 0; i < element2.length; i++) {
-                    const element = element2[i]; // a tag
-                    const href = $(element).attr('href');
-                    const match = href.match(/\/listing\/(\d+)/);
-                    if (match) {
-                        const listingId = match[1];
-                        $(element).attr('data-listing-id', listingId);
+            if (elements.length) {
+                for (let i = 0; i < elements.length; i++) {
+                    const element = elements[i]; // a tag
+                    const asin = $(element)?.attr('data-csa-c-item-id')?.split(':')?.[0]?.split('.')?.pop();
+                    if (asin) {
+                        $(element).attr('data-asin', asin);
                     }
-                }
-                const likeButtons = document.getElementsByClassName('implicit-comparison-favorite-button wt-position-absolute wt-position-top wt-position-right');
-
-                for (let i = 0; i < likeButtons.length; i++) {
-                    const element = likeButtons[i];
-                    element.remove();
                 }
             }
         }
         renderPinDetailOrRelatedPin();
-
-        const likeButtons = document.getElementsByClassName('v2-listing-card__actions wt-z-index-1 wt-position-absolute');
-        for (let i = 0; i < likeButtons.length; i++) {
-            const element = likeButtons[i];
-            element.remove();
-        }
     })
 
     useEffect( () => {
@@ -109,174 +87,84 @@ const App = () => {
             return;
         }
         const renderPinDetailOrRelatedPin = async () => {
-            const element = document.querySelector('div[data-palette-listing-id][data-component=listing-page-image-carousel]');
-            if (element) {
-                const id  = element.getAttribute('data-palette-listing-id');
-                if (id) {
-                    $(element).attr('data-listing-id', id);
+            const elements = document.querySelectorAll('[data-csa-c-item-type="asin"]')
 
-                }
-            }
-
-            const element2 = document.querySelectorAll('li[data-clg-id="WtListItem"] a');
-            if (element2.length) {
-                for (let i = 0; i < element2.length; i++) {
-                    const element = element2[i]; // a tag
-                    const href = $(element).attr('href');
-                    const match = href.match(/\/listing\/(\d+)/);
-                    if (match) {
-                        const listingId = match[1];
-                        $(element).attr('data-listing-id', listingId);
+            if (elements.length) {
+                for (let i = 0; i < elements.length; i++) {
+                    const element = elements[i]; // a tag
+                    const asin = $(element)?.attr('data-csa-c-item-id')?.split(':')?.[0]?.split('.')?.pop();
+                    if (asin) {
+                        $(element).attr('data-asin', asin);
                     }
                 }
-                const likeButtons = document.getElementsByClassName('implicit-comparison-favorite-button wt-position-absolute wt-position-top wt-position-right');
-
-                for (let i = 0; i < likeButtons.length; i++) {
-                    const element = likeButtons[i];
-                    element.remove();
-                }
             }
-        }
-
-        const likeButtons = document.getElementsByClassName('v2-listing-card__actions wt-z-index-1 wt-position-absolute');
-        for (let i = 0; i < likeButtons.length; i++) {
-            const element = likeButtons[i];
-            element.remove();
         }
 
         async function processBatch(elements) {
             // Lấy tất cả các yêu cầu API
-            const promises = elements.map(async (element) => {
-                let href;
-                if ($(element).is('div')) {
-                    href = window.location.href;
-                } else if ($(element).is('a')) {
-                    href = $(element).attr('href');
+            for (const element of elements) {
+                const id = $(element).attr('data-asin');
+                const data = await fetchPinInfor(id);
+                console.log('data', data);
+                if (data?.cache) {
+                    continue;
                 }
-
-                // Call API để lấy dữ liệu
-                const data = await fetchPinInfor(href);
-                return data;
-            });
-
-            const tempData = await Promise.all(promises);
-
-            // const listingIds = tempData.filter(i => !i?.cache).map(i => i.id);
-            // if (!listingIds?.length) {
-            //     return;
-            // }
-            const listingIds = tempData.map(i => i.id);
-            const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
-                listing_ids: listingIds
-            }, {
-                headers: {
-                    'X-Access-Token': xToken
-                }
-            });
-            const jsonResponse = response.data?.results;
-
-            const listings = tempData.map(function (item) {
-                const listing = jsonResponse.find(i => i.listing_id == item.id);
-                if (listing) {
-                    item.views = listing?.views || 0;
-                    item.monthSales = listing?.cached_est_mo_sales || 0;
-                    item.totalSales = listing?.cached_est_total_sales || 0;
-                    item.listingMonths = listing?.cached_listing_age_in_months || 0;
-                    item.shopUrl = `https://www.etsy.com/shop/${listing?.shop_name}`
-                }
-                return item;
-            });
-
-            // ---------------------------------------------------------------------------------------------------
-            // const listingIds = [];
-            // elements.forEach(e => {
-            //     const listingId = e.getAttribute('data-listing-id');
-            //     if (!listingIds.includes(listingId) && listingId) {
-            //         listingIds.push(listingId);
-            //     }
-            // });
-
-            // const response = await axios.post('https://api.everbee.com/etsy_apis/listing', {
-            //     listing_ids: listingIds
-            // }, {
-            //     headers: {
-            //         'X-Access-Token': 'eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJldmVyYmVlLXNzbyIsImlhdCI6MTc0NTIyMTEwOSwiZXhwIjoxNzQ1ODI1OTA5LCJ1c2VyX2lkIjoiMjMwMmYyMTYtMTZkNS00ZjMzLWIzZmMtNDQzNzMwZjMwOTlmIiwiZW1haWwiOiJwaHVjbmd1eWVuMDExM0BnbWFpbC5jb20iLCJ0diI6MSwiaWJwIjpmYWxzZSwiaWJzIjpmYWxzZSwic29zIjpmYWxzZSwiYWN0IjoiMSIsImF1ZCI6IjM3LVVQNHhSNG1aWmFadGVzMjdpNmlKWUJ6UjBYeTBfQzEwZmUtd3QtU0UiLCJzY29wZXMiOltdfQ.Ja030YkFBPj24KvEiBScnh2ILMsnx5fBzHkyWFw8Jt6Hk-iuNOO7AJCzJaMBN8i2AOkStR3f3pIQPKli1Nuc0Q'
-            //     }
-            // });
-
-            // Xử lý dữ liệu trả về từ API
-            // const jsonResponse = response.data?.results;
-
-            // Cập nhật thông tin cho tempData
-            // const listings = jsonResponse.map(function (item) {
-            //     const listing = jsonResponse.find(i => i.listing_id == item.id);
-            //     return {
-            //         id: listing.listing_id,
-            //         title: listing?.title,
-            //         views: listing?.views || 0,
-            //         monthSales: listing?.cached_est_mo_sales || 0,
-            //         totalSales: listing?.cached_est_total_sales || 0,
-            //         listingMonths: listing?.cached_listing_age_in_months || 0,
-            //         favorites: listing.num_favorers || 0,
-            //         reviews: listing?.cached_est_reviews || 0,
-            //         shopName: listing?.Shop?.shop_name || '',
-
-            //     }
-            // });
-
-            // Cập nhật giao diện
-            elements.forEach((element) => {
-                const id = $(element).attr('data-listing-id');
-                const data = listings.find(i => i.id == id);
-                const {typeHightlight, match} = hightlightType(data);
-
-                console.log('typeHightlight', typeHightlight, match, hightlightType(data));
+                const { typeHightlight, match } = hightlightType(data);
+        
                 data.hightlight = typeHightlight;
-
+        
                 $(element).removeClass('warning-pin error-pin ok-pin');
                 $(element).addClass(`${typeHightlight}-pin`);
-                $(element).attr('data-total-sales', data?.totalSales || 0);
-
+                $(element).css('position', 'relative');
+                let rank = '';
+                for (let index = 0; index < data?.rank?.length; index++) {
+                    const element =  data?.rank[index];
+                    rank += decodeURIComponent(element) + '<br>';
+                }
+                //   <div title="total sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales || 0}</div>
                 const ButtonWrapper = $(`
-                    <div id="inject-${id}" class="saph-inject-data">
+                    <div id="inject-${id}" class="saph-inject-data" style='position:absolute;top: 0; left:0;width: 100%;'>
                         <div class="saph-domain">${data?.shopName || "..."}</div>
                         <div class="saph-stats">
-                            <div title="reviews count"><i class="saic-review"></i>  ${data?.reviews || 0}</div>
-                            <div title="views count"><i class="fa fa-eye"></i>  ${data?.views || 0}</div>
-                            <div title="favorites count"><i class="saic-saved"></i> ${data?.favorites || 0}</div>
-                            <div title="month sales count"><i class="fas fa-shopping-cart"></i> ${data?.monthSales || 0}</div>
-                            <div title="total sales count"><i class="fas fa-shopping-cart"></i> ${data?.totalSales || 0}</div>
+                            <div title="ratings count"><i class="fas fa-star" style="color: #FF9800;"></i> ${data?.ratings || 0} (${data?.everageRating})</div>
+                            <div title="ranking">${rank}</div>
+                            <div title="type">${data?.amz ? 'AMZ' : 'FBA'}</div>
+                            <div title="reviews"><i class="fas fa-comment"></i> ${data?.reviews || 0}</div>
+                            <div title="30 days sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales30 || 0}</div>
                             <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
                             ${match ? `<div class="hl-tag">${match}</div>`: ''}
                             <div class="sahp-custm" title="Is custom type">Type Custom</div>
                         </div>
-                        <input class="saph-check" data-json='${JSON.stringify(data)}'id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+                        <input class="saph-check" data-json='${JSON.stringify(data)}' id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                     </div>
                 `);
-
+        
                 if ($(`#inject-${id}`).length) {
                     $(`#inject-${id}`).replaceWith(ButtonWrapper);
                 } else {
                     $(element).append(ButtonWrapper);
                 }
-            });
+        
+                // Sleep for 0.5 seconds before moving to the next element
+                // await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
-            return tempData;
         }
 
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
-        const elements = $('a[data-listing-id], div[data-palette-listing-id][data-component=listing-page-image-carousel]').toArray()
+        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace]),span[data-asin]').toArray()
         .filter(el => {
-            const id = $(el).data('listing-id') || $(el).attr('data-palette-listing-id');
+            const id = $(el).attr('data-asin');
             return debouncedVisibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
           });
-
+          console.log('elements', elements);
         const render = async () => {
             setIsRender(true);
             await renderPinDetailOrRelatedPin();
             try {
                 await processBatch(elements);
             } catch (error) {
+                console.log('err', error)
                 messageApi.open({
                     type: "error",
                     content: `Maybe your network is interruped, render checkboxes failed! `,
@@ -361,101 +249,147 @@ const App = () => {
         rebuildPinState();
     }
 
-    const fetchPinInfor = async (href) => {
-        const cleanUrl = href.split('?')[0];
+    const fetchPinInfor = async (id) => {
+        function sendMessageAsync(message) {
+            return new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage(message, (response) => {
+                if (response.data) {
+                  resolve(response.data);
+                } else {
+                  reject(response.error || "Unknown error");
+                }
+              });
+            });
+        }
+        const resizeImage = (imageSrc) => {
+            // let url = imageSrc.replace(/_QL\d+_/, '_')
+            // .replace(/_FMwebp_/, '_');
 
-        const response =  await axios.get(`${cleanUrl}?from-extension=true`);
+            // return url.replace(/_AC_(SX\d+)?(_SY\d+)?_/, `_AC_SX1200_`);
+            const extension = imageSrc.split('.')?.pop() || 'jpg'; 
+            return (imageSrc?.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
+        }
+        const href =`https://www.amazon.com/dp/${id}`
+        const response =  await axios.get(`${href}?psc=1&from-extension=true`);
 
         const htmlString = response.data;
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
-
-        const scripts = doc.querySelectorAll('script');
-        const ldJsonScript = Array.from(scripts).find(script => script.type === 'application/ld+json');
-        if (ldJsonScript) {
-            const pinInfo = JSON.parse(ldJsonScript.textContent);
-            let images = [];
+        console.log('merchByAmazonBranding_feature_div', doc.getElementById('merchByAmazonBranding_feature_div'));
+        console.log('detailBulletsWrapper_feature_div', doc.querySelector('#detailBulletsWrapper_feature_div'))
+        if (!doc.querySelector('#detailBulletsWrapper_feature_div')) {
+            console.log('doccccc', doc);
+            console.log('scriprs', doc?.querySelectorAll('script'));
+            doc?.querySelectorAll('script')?.forEach(tag => {
+                console.log('sc' + id, tag.innerHTML);
+            })
+        }
+        const amz = doc.getElementById('merchByAmazonBranding_feature_div')?.querySelector('img') ? true : false;
+        const images = [];
+        if (amz) {
+            let originalPng = doc.getElementById('imgTagWrapperId')?.querySelector('img')?.getAttribute('src');
+            let png1200 = resizeImage(originalPng || '');
+            if (png1200) {
+                images.push(png1200);
+            }
+        } else {
             try {
-                images = pinInfo?.image?.slice(0, 4)?.map(i => i?.contentURL) || [];
+                const tempImages = Object.keys(JSON.parse(doc?.getElementById('imgTagWrapperId').querySelector('img').getAttribute('data-a-dynamic-image')));
+                tempImages.map(src => {
+                    resizeImage(src);
+                    if (images.length < 4) {
+                        images.push(resizeImage(src));
+                    }
+                });
             } catch (error) {
-                if (typeof pinInfo?.image === 'string') {
-                    images.push(pinInfo?.image);
-                }
-            }
-            const reviews = doc.getElementById('same-listing-reviews-tab')?.querySelector('span')?.innerHTML?.replace(/\D/g, '') || 0;
-            const favoritesAndListedDateDOM = doc.getElementsByClassName('wt-display-flex-xs wt-align-items-center wt-flex-direction-row-lg wt-flex-direction-column-xs')?.[0];
-            let listedDate;
-            let relativeTime;
-            let favorites;
-            if (favoritesAndListedDateDOM) {
-                favorites = favoritesAndListedDateDOM?.querySelector('a')?.innerHTML?.replace(/\D/g, '');
-                const rawDate = favoritesAndListedDateDOM?.querySelector('div.wt-pr-xs-2.wt-text-caption')?.innerHTML;
-                const dateMatch = (rawDate || '').match(/Listed on (\w{3} \d{1,2}, \d{4})/);
-                // console.log('favoritesAndListedDateDOM', dateMatch, rawDate);
-
-                if (dateMatch?.[1]) {
-                    let sd = (new Date(dateMatch[1])).toISOString().split("T")[0];
-                    let date = dayjs(sd);
-                    relativeTime = date.fromNow(true);
-                    listedDate = sd;
-                }
-            }
-
-            return {
-                url: cleanUrl,
-                id: pinInfo?.sku,
-                title: pinInfo?.name,
-                highPrice:pinInfo?.offers?.highPrice,
-                lowPrice: pinInfo?.offers?.lowPrice,
-                price: pinInfo?.offers?.price,
-                listedDate,
-                relativeTime,
-                favorites,
-                shopName: pinInfo?.brand?.name,
-                reviews,
-                images,
-                cache: response?.cached
+                
             }
         }
-        console.log('Oops', href, scripts);
-        return {};
+        let description = '';
+        doc.querySelector('.a-unordered-list.a-vertical.a-spacing-small')?.querySelectorAll('li span').forEach(e => {
+            if (e.innerHTML) {
+                description+= e.innerHTML + '\n';
+            }
+        })
+        const regexShop = /Visit the  Store/;
+        const regexShop2 = /Brand: (.+?)/;
+        const shop = doc?.querySelector('#bylineInfo')?.innerHTML?.match(regexShop)?.[1] || doc?.querySelector('#bylineInfo')?.innerHTML?.match(regexShop2)?.[1];
+        const object = {
+            id,
+            title: doc?.querySelector('#productTitle')?.innerHTML?.trim(),
+            url: href,
+            ratings: doc.querySelector('#acrCustomerReviewText')?.innerHTML?.trim() || 0,
+            everageRating: doc.querySelector('#acrPopover')?.querySelector('.a-size-base.a-color-base')?.innerHTML?.trim() || 0,
+            amz,
+            images,
+            description,
+            shopName: shop || doc?.querySelector('#sellerProfileTriggerId')?.innerHTML,
+            cache: response?.cached
+        };
+        function cleanText(text) {
+            // Loại bỏ HTML entities (như &rlm;, &lrm;)
+            let cleanedText = text.replace(/&[a-zA-Z0-9#]+;/g, '');
+        
+            // Loại bỏ dấu ":" và các ký tự không cần thiết khác
+            cleanedText = cleanedText.replace(/[:‏‎]/g, ''); // Loại bỏ dấu ":" và ký tự RLM, LRM
+        
+            // Loại bỏ khoảng trắng thừa
+            cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+        
+            return cleanedText;
+        }
+        for (let index = 0; index < doc.querySelector('#detailBulletsWrapper_feature_div')?.querySelectorAll('.a-list-item')?.length; index++) {
+            const element = doc.querySelector('#detailBulletsWrapper_feature_div')?.querySelectorAll('.a-list-item')[index]
+            
+            const title = cleanText(element?.children?.[0]?.innerHTML ?? '');
 
-        // Draw from DOM
-        // const carousels = doc.querySelectorAll('li.carousel-pane')
-        // const images = [];
-        // for (let i = 0; i < (carousels.length <= 4 ? carousels.length : 4); i++) {
-        //     const element = carousels[i];
-        //     const img = element.querySelector('img');
-        //     if (img) {
-        //         images.push(img.getAttribute('src'));
-        //     }
-        // }
+            console.log('element', title, id);
+            if (title == 'Date First Available') {
+                const dateIso = (new Date(element?.children?.[1]?.innerHTML)).toISOString().split("T")[0];
+                object['listedDate'] = dateIso;
+                let date = dayjs(dateIso);
+                const relativeTime = date.fromNow(true);
+                object['relativeTime'] = relativeTime;
+            }
 
-        // const priceContent = doc.querySelector('div[data-selector="price-only"]')?.querySelector('p').innerHTML || '';
+            if (title == 'Best Sellers Rank') {
+                let rank = [];
+                const regex = /\#[0-9]{1,10}/;
+                const match = element?.innerHTML.match(regex);
+                if (match?.[0]) {
+                    // object['rank'] = match[0];
+                    rank.push(`${match[0]} in our brand`);
+                }
+                element?.querySelectorAll('.a-list-item').forEach(e => {
+                    if (e.innerHTML) {
+                        rank.push(encodeURIComponent(e.innerHTML));
+                    }
+                });
+                object['rank'] = rank;
+            }
 
-        // const priceMax = doc.querySelector('div[data-selector="price-only"]').querySelector('.wt-text-strikethrough').innerHTML?.replace(/[^\d,]/g, '') || 0;
-        // const price = priceContent.replace(/<.*?>/g, '')?.trim()?.replace(/[^\d,]/g, '');
-        // const title = doc.querySelector('h1[data-buy-box-listing-title="true"]')?.innerHTML?.replace(/\n/g, '').trim();
-        // const reviews = doc.getElementById('same-listing-reviews-tab')?.querySelector('span')?.innerHTML?.replace(/\D/g, '') || 0;
-        // const shopName = doc.getElementById('shop_owners_content_toggle')?.querySelector('.wt-text-heading-small.wt-line-height-tight.wt-mb-lg-1')?.innerHTML || '';
+            if (title == 'ASIN') {
+                object['asin'] = element?.children?.[1]?.innerHTML;
+            }
 
-        // const favoritesAndListedDateDOM = doc.getElementsByClassName('wt-display-flex-xs wt-align-items-center wt-flex-direction-row-lg wt-flex-direction-column-xs')?.[0];
-        // let listedDate;
-        // let relativeTime;
-        // let favorites;
-        // if (favoritesAndListedDateDOM) {
-        //     favorites = favoritesAndListedDateDOM?.querySelector('a')?.innerHTML?.replace(/\D/g, '');
-        //     const rawDate = favoritesAndListedDateDOM?.querySelector('div.wt-pr-xs-2.wt-text-caption')?.innerHTML;
-        //     const dateMatch = (rawDate || '').match(/Listed on (\w{3} \d{1,2}, \d{4})/);
-        //     // console.log('favoritesAndListedDateDOM', dateMatch, rawDate);
-
-        //     if (dateMatch?.[1]) {
-        //         let sd = (new Date(dateMatch[1])).toISOString().split("T")[0];
-        //         let date = dayjs(sd);
-        //         relativeTime = date.fromNow(true);
-        //         listedDate = sd;
-        //     }
-        // }
+            if (title == 'Manufacturer') {
+                object['shopName'] = element?.children?.[1]?.innerHTML;
+            }
+        }
+        if (!response?.cached && id) {
+            const additionData = await sendMessageAsync({
+                type: "GET_PROFITGURU_DATA",
+                asin: id
+            });
+            console.log('additionData', additionData)
+            object['reviews'] = additionData?.product?.reviews;
+            object['sales'] = additionData?.product?.sales;
+            object['sales30'] = additionData?.product?.sales30;
+            if (!object['shopName']) {
+                object['shopName'] = additionData?.brandName;
+            }
+        }
+        return object
     }
 
     const reloadPins = async (pinIds) => {
@@ -559,7 +493,7 @@ const App = () => {
                 return { typeHightlight: 'error', match: match.join(', ')};
             }
         }
-        console.log('qwewqeq', whitelist);
+
         // Kiểm tra whitelist
         if (pin.title && whitelist?.length) {
             const match = [];
@@ -632,7 +566,7 @@ const App = () => {
 
     return (
         <div style={{position: 'fixed', bottom: '100px', right: '10px', zIndex: 10}} >
-            {/* <div>visibleIds:  {visibleIds.join(', ')}</div> */}
+            {/** <div>visibleIds:  {visibleIds.join(', ')}</div> */}
             <div style={{marginBottom: '10px'}}>
                 {isRender ? <Spin size="large" /> : null}
             </div>

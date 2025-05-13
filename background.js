@@ -1,9 +1,46 @@
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Kiểm tra loại yêu cầu (ở đây là GET API)
+    if (request.type === "GET_PROFITGURU_DATA") {
+      const asin = request.asin;
+  
+      // Gọi API với URL động
+      fetch(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
+        method: 'GET',
+        headers: {
+            'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
+        },
+        credentials: 'include'  // Nếu cần gửi cookie cùng với yêu cầu
+      })
+      .then(response => response.json())
+      .then(responseData => {
+        // Gửi kết quả API lại cho caller (content script/popup)
+        sendResponse({ data: responseData });
+        chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
+            cookies.forEach(cookie => {
+                chrome.cookies.remove({
+                    url: `https://${cookie.domain}${cookie.path}`,
+                    name: cookie.name
+                });
+            });
+        });
+      })
+      .catch(error => {
+        console.log('Error fetching API:', error);
+        sendResponse({ error: error.message });
+      });
+  
+      // Đảm bảo listener giữ kênh giao tiếp mở cho async response
+      return true;  
+    }
+  });
+
 chrome.webRequest.onCompleted.addListener(
     (details) => {
         // console.log(details, details?.url);
+
         if (
             !["xmlhttprequest"].includes(details.type) ||
-            !details.url.includes("etsy.")
+            !details.url.includes("amazon")
             || details.url.includes('from-extension')
         ) {
             return;
@@ -17,6 +54,7 @@ chrome.webRequest.onCompleted.addListener(
     },
     { urls: ["<all_urls>"] }
 );
+
 console.log('workkk');
 // chrome.runtime.onInstalled.addListener(() => {
 //     // Đợi 1s cho content script inject xong

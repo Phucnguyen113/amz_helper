@@ -10,9 +10,8 @@ export default function useVisibleListings(threshold = 0.5) {
     const mutationObserver = new MutationObserver(() => {
       // Lấy tất cả các phần tử sau mỗi mutation (thay đổi DOM)
       const selectors = [
-        'div[data-listing-id]',
-        'a[data-listing-id]',
-        'div[data-palette-listing-id][data-component="listing-page-image-carousel"]',
+        '[data-asin]',
+        '[data-csa-c-item-type="asin"]'
       ];
       const elements = document.querySelectorAll(selectors.join(','));
       
@@ -31,13 +30,20 @@ export default function useVisibleListings(threshold = 0.5) {
 
         entries.forEach((entry) => {
           let id =
-            entry.target.getAttribute('data-listing-id') ||  entry.target.getAttribute('data-palette-listing-id');
+            entry.target.getAttribute('data-asin') || (entry.target?.getAttribute('data-csa-c-item-id')?.split(':')?.[0]?.split('.')?.pop());
 
           if (!id) return;
-
+          if (entry.target.getAttribute('data-asin')) {
+            entry.target.setAttribute('data-asin', id);
+          }
           if (entry.isIntersecting) {
             if (!visibleMap.has(id)) {
               visibleMap.set(id, true);
+              changed = true;
+            }
+          } else {
+            if (visibleMap.has(id)) {
+              visibleMap.delete(id);
               changed = true;
             }
           }
