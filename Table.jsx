@@ -234,7 +234,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
           const {typeHightlight} = hightlightPinType(row);
           return (
             <>
-              <Image  style={{width: 200}} src={row?.images?.[0]} preview={false} className={typeHightlight ? `${typeHightlight}-image` : ''}/>
+              <Image style={{width: 200}} src={row?.images?.[0]} preview={false} className={typeHightlight ? `${typeHightlight}-image` : ''}/>
             </>
           )
         }
@@ -269,22 +269,18 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
                   <i className="saic-domain"></i> {row?.shopName || ""}
                 </div>
                 <div className="saph-sffil">
-                  <span title="favorites count">
-                    <i className="saic-saved"></i> {row?.favorites || 0}
-                  </span>
-                  |
                   <span title="views count">
-                    <i className="fa fa-eye"></i> {row?.views || 0}
+                    <i className="fa fa-eye"></i> {row?.reviews || 0}
                   </span>
                 </div>
                 <div className="saph-sffil">
                   <span title="month sales count">
-                    <i className="fas fa-shopping-cart"></i> {row?.monthSales || 0}
+                    <i className="fas fa-shopping-cart"></i> {row?.sales30 || 0}
                   </span>
-                  |
+                  {/* |
                   <span title="total sales count">
                     <i className="fas fa-shopping-cart"></i> {row?.totalSales || 0}
-                  </span>
+                  </span> */}
                 </div>
               </div>
     

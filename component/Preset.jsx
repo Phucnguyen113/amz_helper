@@ -40,7 +40,7 @@ const Preset = ({ isOpen, setOpen }) => {
     }, [presetUsed, niches]);
 
     const fetchQuotes = async () => {
-      const url = `https://evo.evolutee.net/api/v4/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
+      const url = `https://evo.evolutee.net/api/v5/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
       try {
         const quotes = await (await fetch(url)).json();
         if (quotes?.status === false) {

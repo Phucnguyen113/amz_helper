@@ -73,9 +73,9 @@ console.log('workkk');
 
 const fetchPreset = async (key) => {
     const urls = [
-        `https://evo.evolutee.net/api/v4/get-info?key=${encodeURIComponent(key)}`,
-        `https://evo.evolutee.net/api/v4/get-niche?key=${encodeURIComponent(key)}`,
-        `https://evo.evolutee.net/api/v4/get-idea?key=${encodeURIComponent(key)}`
+        `https://evo.evolutee.net/api/v5/get-info?key=${encodeURIComponent(key)}`,
+        `https://evo.evolutee.net/api/v5/get-niche?key=${encodeURIComponent(key)}`,
+        `https://evo.evolutee.net/api/v5/get-idea?key=${encodeURIComponent(key)}`
     ];
 
     const responses = await Promise.all(urls.map(url => fetch(url)));
@@ -90,7 +90,7 @@ const fetchPreset = async (key) => {
     //fetch niche & quotes
     const nichesList = await Promise.all(
         (data[2] || []).map(async item => {
-            const url = `https://evo.evolutee.net/api/v4/get-niche-by-idea?key=${encodeURIComponent(key)}&idea_id=${item.id}`;
+            const url = `https://evo.evolutee.net/api/v5/get-niche-by-idea?key=${encodeURIComponent(key)}&idea_id=${item.id}`;
             try {
                 const niches = await (await fetch(url)).json();
                 return {

@@ -109,6 +109,10 @@
   border: 3px dotted #08e535 !important;
 }
 
+.failed-pin {
+  border: 3px dotted #9e4ca3!important;
+}
+
 .ok-pin .saph-inject-data .saph-domain {
   background: #4096ff;
 }

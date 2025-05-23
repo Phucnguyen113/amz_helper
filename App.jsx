@@ -44,6 +44,7 @@ window.addEventListener('beforeunload', () => {
 const App = () => {
     const [openDrawer, setOpenDrawer] = useState(false);
     const [presetOpen, setPresetOpen] = useState(false);
+    const [failedPins, setFailedPins] = useState([]);
     const [itemsSelected, setItemsSelected] = useState(0);
     const [width, setWidthDrawer] = useState(1300);
     const [numberSaved, setNumberSaved] = useChromeStorageLocal("numberSaved", 0);
@@ -102,20 +103,25 @@ const App = () => {
 
         async function processBatch(elements) {
             // Lấy tất cả các yêu cầu API
+            const failPins = [];
             for (const element of elements) {
                 const id = $(element).attr('data-asin');
                 const data = await fetchPinInfor(id);
-                console.log('data', data);
-                if (data?.cache) {
-                    continue;
-                }
+                console.log('data', id, data);
+                // if (!data?.listedDate) {
+                //     failPins.push(data?.id);
+                //     $(element).removeClass('warning-pin error-pin ok-pin failed-pin');
+                //     $(element).addClass(`failed-pin`);
+                //     continue;
+                // }
                 const { typeHightlight, match } = hightlightType(data);
         
                 data.hightlight = typeHightlight;
         
-                $(element).removeClass('warning-pin error-pin ok-pin');
+                $(element).removeClass('warning-pin error-pin ok-pin failed-pin');
                 $(element).addClass(`${typeHightlight}-pin`);
                 $(element).css('position', 'relative');
+                $(element).css('display', 'inline-block');
                 let rank = '';
                 for (let index = 0; index < data?.rank?.length; index++) {
                     const element =  data?.rank[index];
@@ -135,7 +141,7 @@ const App = () => {
                             ${match ? `<div class="hl-tag">${match}</div>`: ''}
                             <div class="sahp-custm" title="Is custom type">Type Custom</div>
                         </div>
-                        <input class="saph-check" data-json='${JSON.stringify(data)}' id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+                        <input class="saph-check"  id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                     </div>
                 `);
         
@@ -144,11 +150,14 @@ const App = () => {
                 } else {
                     $(element).append(ButtonWrapper);
                 }
-        
-                // Sleep for 0.5 seconds before moving to the next element
-                // await new Promise(resolve => setTimeout(resolve, 100));
+                const input = $(`#checkbox-${id}`);
+                console.log('input ', id, input);
+                if (input) {
+                    input.attr('data-json', JSON.stringify(data));
+                }
+                // Sleep for 0.1 seconds before moving to the next element
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
-
         }
 
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
@@ -270,20 +279,19 @@ const App = () => {
             return (imageSrc?.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
         }
         const href =`https://www.amazon.com/dp/${id}`
-        const response =  await axios.get(`${href}?psc=1&from-extension=true`);
+        const response =  await axios.get(`${href}?psc=1&from-extension=true`, {
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'If-None-Match': '',
+            }
+        });
 
         const htmlString = response.data;
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
-        console.log('merchByAmazonBranding_feature_div', doc.getElementById('merchByAmazonBranding_feature_div'));
-        console.log('detailBulletsWrapper_feature_div', doc.querySelector('#detailBulletsWrapper_feature_div'))
-        if (!doc.querySelector('#detailBulletsWrapper_feature_div')) {
-            console.log('doccccc', doc);
-            console.log('scriprs', doc?.querySelectorAll('script'));
-            doc?.querySelectorAll('script')?.forEach(tag => {
-                console.log('sc' + id, tag.innerHTML);
-            })
-        }
+
         const amz = doc.getElementById('merchByAmazonBranding_feature_div')?.querySelector('img') ? true : false;
         const images = [];
         if (amz) {
@@ -372,11 +380,36 @@ const App = () => {
                 object['asin'] = element?.children?.[1]?.innerHTML;
             }
 
-            if (title == 'Manufacturer') {
+            if (title == 'Manufacturer' && !object['shopName'] ) {
                 object['shopName'] = element?.children?.[1]?.innerHTML;
             }
         }
-        if (!response?.cached && id) {
+
+        for (let index = 0; index < doc?.querySelector('#productDetails_detailBullets_sections1')?.querySelectorAll('tr').length; index++) {
+            const element = doc.querySelector('#productDetails_detailBullets_sections1')?.querySelectorAll('tr')[index];
+            const title = cleanText(element?.querySelector('th')?.innerHTML ?? '');
+
+            if (title == 'ASIN') {
+                object['asin'] = element?.querySelector('td')?.innerHTML?.trim();
+            }
+
+            if (title == 'Date First Available') {
+                const dateIso = (new Date(element?.querySelector('td')?.innerHTML)).toISOString().split("T")[0];
+                object['listedDate'] = dateIso;
+                let date = dayjs(dateIso);
+                const relativeTime = date.fromNow(true);
+                object['relativeTime'] = relativeTime;
+            }
+
+            if (title == 'Best Sellers Rank') {
+                const rank = [];
+                element?.querySelectorAll('td span span')?.forEach(i => {
+                    rank.push(encodeURIComponent(i?.innerHTML));
+                });
+                object['rank'] = rank;
+            }
+        }
+        if (id) {
             const additionData = await sendMessageAsync({
                 type: "GET_PROFITGURU_DATA",
                 asin: id
@@ -386,7 +419,7 @@ const App = () => {
             object['sales'] = additionData?.product?.sales;
             object['sales30'] = additionData?.product?.sales30;
             if (!object['shopName']) {
-                object['shopName'] = additionData?.brandName;
+                object['shopName'] = additionData?.product?.brandName;
             }
         }
         return object
