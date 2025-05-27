@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Space, Select, Drawer, Form, Row, Col, Typography } from "antd";
+import { Button, Space, Select, Drawer, Form, Row, Col, Typography, InputNumber } from "antd";
 import styled from "styled-components";
 import { useAppContext } from "../utils/AppContext"; 
 import { usePresetGrouped } from "../utils/hook";
@@ -40,7 +40,7 @@ const Preset = ({ isOpen, setOpen }) => {
     }, [presetUsed, niches]);
 
     const fetchQuotes = async () => {
-      const url = `https://evo.evolutee.net/api/v5/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
+      const url = `https://evo.evolutee.net/api/v4/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
       try {
         const quotes = await (await fetch(url)).json();
         if (quotes?.status === false) {
@@ -151,28 +151,49 @@ const Preset = ({ isOpen, setOpen }) => {
             initialValues={presetUsed}
             onFinish={onFinish}
         >
-          <Form.Item name={"_highlight"} label={"Highlight items newer than"}>
-            <Select
-              placeholder=""
-              options={[
-                ...[3, 6, 9, 12, 16].map((i) => {
-                  return {
-                    value: i,
-                    label: `${i} months`,
-                  };
-                }),
+          <Form.Item name={"type"} label={"Type"}
+            rules={[
                 {
-                  value: 24,
-                  label: `2 years`,
+                  required: true,
                 },
-                {
-                  value: 36,
-                  label: `3 years`,
-                },
-              ]}
-            />
+              ]} 
+            >
+              <Select
+                style={{width: '100%'}}
+                options={[
+                  {label: 'ALL', value: 'all'},
+                  {label: 'AMZ', value: 'amz'},
+                  {label: 'FBA', value: 'fba'}
+                ]}
+              ></Select>
           </Form.Item>
 
+          <Row gutter={[15, 15]}>
+            <Col span={12}>
+               <Form.Item name={"ratingMin"} label={"Rating Min"} 
+                  rules={[
+                    {
+                      required: true,
+                    },
+                  ]}
+                >
+                  <InputNumber min={0} step={1} defaultValue={0} style={{width: '100%'}}/>
+              </Form.Item>
+            </Col>
+              
+            <Col span={12}>
+                <Form.Item name={"ratingMax"} label={"Rating Max"} 
+                  rules={[
+                    {
+                      required: true,
+                    },
+                  ]}
+                >
+                  <InputNumber min={0} step={1} defaultValue={0} style={{width: '100%'}}/>
+              </Form.Item>
+            </Col>
+          </Row>
+        
           <Row gutter={[15, 15]}>
             <Col span={12}>
               <Form.Item

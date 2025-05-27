@@ -1,33 +1,54 @@
+import axios from './Axios';
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Kiểm tra loại yêu cầu (ở đây là GET API)
     if (request.type === "GET_PROFITGURU_DATA") {
       const asin = request.asin;
   
       // Gọi API với URL động
-      fetch(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
-        method: 'GET',
-        headers: {
-            'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
-        },
-        credentials: 'include'  // Nếu cần gửi cookie cùng với yêu cầu
-      })
-      .then(response => response.json())
-      .then(responseData => {
-        // Gửi kết quả API lại cho caller (content script/popup)
-        sendResponse({ data: responseData });
-        chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
-            cookies.forEach(cookie => {
-                chrome.cookies.remove({
-                    url: `https://${cookie.domain}${cookie.path}`,
-                    name: cookie.name
+    //   fetch(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
+    //     method: 'GET',
+    //     headers: {
+    //         'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
+    //     },
+    //     credentials: 'include'  // Nếu cần gửi cookie cùng với yêu cầu
+    //   })
+    //   .then(response => response.json())
+    //   .then(responseData => {
+    //     // Gửi kết quả API lại cho caller (content script/popup)
+    //     sendResponse({ data: responseData });
+    //     chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
+    //         cookies.forEach(cookie => {
+    //             chrome.cookies.remove({
+    //                 url: `https://${cookie.domain}${cookie.path}`,
+    //                 name: cookie.name
+    //             });
+    //         });
+    //     });
+    //   })
+    //   .catch(error => {
+    //     console.log('Error fetching API:', error);
+    //     sendResponse({ error: error.message });
+    //   });
+        try {
+             const response = axios.get(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
+                headers: {
+                    'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
+                },
+                withCredentials: true // Send cookies with the request
+            }).then((response) => {
+                sendResponse({ data: response?.data });
+                chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
+                    cookies.forEach(cookie => {
+                        chrome.cookies.remove({
+                            url: `https://${cookie.domain}${cookie.path}`,
+                            name: cookie.name
+                        });
+                    });
                 });
             });
-        });
-      })
-      .catch(error => {
-        console.log('Error fetching API:', error);
-        sendResponse({ error: error.message });
-      });
+        } catch (error) {
+            sendResponse({ error: error.message });
+        }
   
       // Đảm bảo listener giữ kênh giao tiếp mở cho async response
       return true;  
@@ -73,9 +94,9 @@ console.log('workkk');
 
 const fetchPreset = async (key) => {
     const urls = [
-        `https://evo.evolutee.net/api/v5/get-info?key=${encodeURIComponent(key)}`,
-        `https://evo.evolutee.net/api/v5/get-niche?key=${encodeURIComponent(key)}`,
-        `https://evo.evolutee.net/api/v5/get-idea?key=${encodeURIComponent(key)}`
+        `https://evo.evolutee.net/api/v4/get-info?key=${encodeURIComponent(key)}`,
+        `https://evo.evolutee.net/api/v4/get-niche?key=${encodeURIComponent(key)}`,
+        `https://evo.evolutee.net/api/v4/get-idea?key=${encodeURIComponent(key)}`
     ];
 
     const responses = await Promise.all(urls.map(url => fetch(url)));
@@ -90,7 +111,7 @@ const fetchPreset = async (key) => {
     //fetch niche & quotes
     const nichesList = await Promise.all(
         (data[2] || []).map(async item => {
-            const url = `https://evo.evolutee.net/api/v5/get-niche-by-idea?key=${encodeURIComponent(key)}&idea_id=${item.id}`;
+            const url = `https://evo.evolutee.net/api/v4/get-niche-by-idea?key=${encodeURIComponent(key)}&idea_id=${item.id}`;
             try {
                 const niches = await (await fetch(url)).json();
                 return {

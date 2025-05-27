@@ -101,64 +101,114 @@ const App = () => {
             }
         }
 
-        async function processBatch(elements) {
-            // Lấy tất cả các yêu cầu API
+        // async function processBatch(elements) {
+        //     // Lấy tất cả các yêu cầu API
+        //     const failPins = [];
+        //     for (const element of elements) {
+        //         const id = $(element).attr('data-asin');
+        //         const data = await fetchPinInfor(id);
+        //         console.log('data', id, data);
+        //         $(element).attr('data-total-sales', data?.sales30 || 0);
+
+        //         const { typeHightlight, match } = hightlightType(data);
+        
+        //         data.hightlight = typeHightlight;
+        
+        //         $(element).removeClass('warning-pin error-pin ok-pin failed-pin');
+        //         $(element).addClass(`${typeHightlight}-pin`);
+        //         $(element).css('position', 'relative');
+        //         $(element).css('display', 'inline-block');
+        //         // let rank = '';
+        //         // for (let index = 0; index < data?.rank?.length; index++) {
+        //         //     const element =  data?.rank[index];
+        //         //     rank += decodeURIComponent(element) + '<br>';
+        //         // }
+        //         //   <div title="total sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales || 0}</div>
+        //         //  <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
+        //         // <div title="ranking">${rank}</div>
+        //         const ButtonWrapper = $(`
+        //             <div id="inject-${id}" class="saph-inject-data" style='position:absolute;top: 0; left:0;width: 100%;'>
+        //                 <div class="saph-domain">${data?.shopName || "..."}</div>
+        //                 <div class="saph-stats">
+        //                     <div title="ratings count"><i class="fas fa-star" style="color: #FF9800;"></i> ${data?.reviews || 0} (${data?.everageRating || 0})</div>
+
+        //                     <div title="type">${data?.amz ? 'AMZ' : 'FBA'}</div>
+        //                     <div title="reviews"><i class="fas fa-comment"></i> ${data?.reviews || 0}</div>
+        //                     <div title="30 days sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales30 || 0}</div>
+        //                     ${match ? `<div class="hl-tag">${match}</div>`: ''}
+        //                     <div class="sahp-custm" title="Is custom type">Type Custom</div>
+        //                 </div>
+        //                 <input class="saph-check"  id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
+        //             </div>
+        //         `);
+        
+        //         if ($(`#inject-${id}`).length) {
+        //             $(`#inject-${id}`).replaceWith(ButtonWrapper);
+        //         } else {
+        //             $(element).append(ButtonWrapper);
+        //         }
+        //         const input = $(`#checkbox-${id}`);
+        //         console.log('input ', id, input);
+        //         if (input) {
+        //             input.attr('data-json', JSON.stringify(data));
+        //         }
+        //     }
+        // }
+
+        async function processBatch(elements, batchSize = 2) {
             const failPins = [];
-            for (const element of elements) {
-                const id = $(element).attr('data-asin');
-                const data = await fetchPinInfor(id);
-                console.log('data', id, data);
-                // if (!data?.listedDate) {
-                //     failPins.push(data?.id);
-                //     $(element).removeClass('warning-pin error-pin ok-pin failed-pin');
-                //     $(element).addClass(`failed-pin`);
-                //     continue;
-                // }
-                const { typeHightlight, match } = hightlightType(data);
-        
-                data.hightlight = typeHightlight;
-        
-                $(element).removeClass('warning-pin error-pin ok-pin failed-pin');
-                $(element).addClass(`${typeHightlight}-pin`);
-                $(element).css('position', 'relative');
-                $(element).css('display', 'inline-block');
-                let rank = '';
-                for (let index = 0; index < data?.rank?.length; index++) {
-                    const element =  data?.rank[index];
-                    rank += decodeURIComponent(element) + '<br>';
-                }
-                //   <div title="total sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales || 0}</div>
-                const ButtonWrapper = $(`
-                    <div id="inject-${id}" class="saph-inject-data" style='position:absolute;top: 0; left:0;width: 100%;'>
-                        <div class="saph-domain">${data?.shopName || "..."}</div>
-                        <div class="saph-stats">
-                            <div title="ratings count"><i class="fas fa-star" style="color: #FF9800;"></i> ${data?.ratings || 0} (${data?.everageRating})</div>
-                            <div title="ranking">${rank}</div>
-                            <div title="type">${data?.amz ? 'AMZ' : 'FBA'}</div>
-                            <div title="reviews"><i class="fas fa-comment"></i> ${data?.reviews || 0}</div>
-                            <div title="30 days sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales30 || 0}</div>
-                            <div class="sahp-dati" title="Date added ${data?.listedDate || ""}"><i class="saic-date"></i> ${data?.relativeTime}</div>
-                            ${match ? `<div class="hl-tag">${match}</div>`: ''}
-                            <div class="sahp-custm" title="Is custom type">Type Custom</div>
+
+            for (let i = 0; i < elements.length; i += batchSize) {
+                const batch = elements.slice(i, i + batchSize);
+
+                // Xử lý song song 2 phần tử trong batch
+                await Promise.all(batch.map(async (element) => {
+                    const id = $(element).attr('data-asin');
+                    const data = await fetchPinInfor(id);
+                    console.log('data', id, data);
+
+                    $(element).attr('data-total-sales', data?.sales30 || 0);
+
+                    const { typeHightlight, match } = hightlightType(data);
+                    data.hightlight = typeHightlight;
+
+                    $(element).removeClass('warning-pin error-pin ok-pin failed-pin');
+                    $(element).addClass(`${typeHightlight}-pin`);
+                    $(element).css('position', 'relative');
+                    $(element).css('display', 'inline-block');
+
+                    const ButtonWrapper = $(`
+                        <div id="inject-${id}" class="saph-inject-data" style='position:absolute;top: 0; left:0;width: 100%;'>
+                            <div class="saph-domain">${data?.shopName || "..."}</div>
+                            <div class="saph-stats">
+                                <div title="ratings count"><i class="fas fa-star" style="color: #FF9800;"></i> ${data?.reviews || 0} (${data?.everageRating || 0})</div>
+                                <div title="type">${data?.amz ? 'AMZ' : 'FBA'}</div>
+                                <div title="reviews"><i class="fas fa-comment"></i> ${data?.reviews || 0}</div>
+                                <div title="30 days sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales30 || 0}</div>
+                                ${match ? `<div class="hl-tag">${match}</div>` : ''}
+                                <div class="sahp-custm" title="Is custom type">Type Custom</div>
+                            </div>
+                            <input class="saph-check" id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                         </div>
-                        <input class="saph-check"  id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
-                    </div>
-                `);
-        
-                if ($(`#inject-${id}`).length) {
-                    $(`#inject-${id}`).replaceWith(ButtonWrapper);
-                } else {
-                    $(element).append(ButtonWrapper);
-                }
-                const input = $(`#checkbox-${id}`);
-                console.log('input ', id, input);
-                if (input) {
-                    input.attr('data-json', JSON.stringify(data));
-                }
-                // Sleep for 0.1 seconds before moving to the next element
-                await new Promise(resolve => setTimeout(resolve, 100));
+                    `);
+
+                    if ($(`#inject-${id}`).length) {
+                        $(`#inject-${id}`).replaceWith(ButtonWrapper);
+                    } else {
+                        $(element).append(ButtonWrapper);
+                    }
+
+                    const input = $(`#checkbox-${id}`);
+                    if (input) {
+                        input.attr('data-json', JSON.stringify(data));
+                    }
+                }));
+
+                // Chờ 1 chút nếu muốn giới hạn tốc độ (tuỳ chọn)
+                // await new Promise(resolve => setTimeout(resolve, 200));
             }
         }
+
 
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
         const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace]),span[data-asin]').toArray()
@@ -166,7 +216,6 @@ const App = () => {
             const id = $(el).attr('data-asin');
             return debouncedVisibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
           });
-          console.log('elements', elements);
         const render = async () => {
             setIsRender(true);
             await renderPinDetailOrRelatedPin();
@@ -215,7 +264,7 @@ const App = () => {
     const checkAllOkPin = async () => {
         const pinIds = [];
         $('.ok-pin,.whitelist-pin').each(function (index, element) {
-            const id = $(element).attr('data-listing-id');
+            const id = $(element).attr('data-asin');
             const totalSales = $(element).attr('data-total-sales');
             if (totalSales >= numberSaved) {
                 const checkbox = $(`#checkbox-${id}`);
@@ -258,172 +307,262 @@ const App = () => {
         rebuildPinState();
     }
 
+    // const fetchPinInfor = async (id) => {
+    //     function sendMessageAsync(message) {
+    //         return new Promise((resolve, reject) => {
+    //           chrome.runtime.sendMessage(message, (response) => {
+    //             console.log('rrrr', response);
+    //             if (response.data) {
+    //               resolve(response.data);
+    //             } else {
+    //               reject(response.error || "Unknown error");
+    //             }
+    //           });
+    //         });
+    //     }
+    //     const resizeImage = (imageSrc) => {
+    //         // let url = imageSrc.replace(/_QL\d+_/, '_')
+    //         // .replace(/_FMwebp_/, '_');
+
+    //         // return url.replace(/_AC_(SX\d+)?(_SY\d+)?_/, `_AC_SX1200_`);
+    //         const extension = imageSrc.split('.')?.pop() || 'jpg'; 
+    //         return (imageSrc?.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
+    //     }
+    //     const href =`https://www.amazon.com/dp/${id}`
+    //     const response =  await axios.get(`${href}?psc=1&from-extension=true`, {
+    //         headers: {
+    //             'Cache-Control': 'no-cache',
+    //             'Pragma': 'no-cache',
+    //             'Expires': '0',
+    //             'If-None-Match': '',
+    //         }
+    //     });
+
+    //     const htmlString = response.data;
+    //     const parser = new DOMParser();
+    //     const doc = parser.parseFromString(htmlString, 'text/html');
+
+    //     const amz = doc.getElementById('merchByAmazonBranding_feature_div')?.querySelector('img') ? true : false;
+    //     const images = [];
+    //     if (amz) {
+    //         let originalPng = doc.getElementById('imgTagWrapperId')?.querySelector('img')?.getAttribute('src');
+    //         let png1200 = resizeImage(originalPng || '');
+    //         if (png1200) {
+    //             images.push(png1200);
+    //         }
+    //     } else {
+    //         try {
+    //             const tempImages = Object.keys(JSON.parse(doc?.getElementById('imgTagWrapperId').querySelector('img').getAttribute('data-a-dynamic-image')));
+    //             tempImages.map(src => {
+    //                 resizeImage(src);
+    //                 if (images.length < 4) {
+    //                     images.push(resizeImage(src));
+    //                 }
+    //             });
+    //         } catch (error) {
+                
+    //         }
+    //     }
+    //     // let description = '';
+    //     // doc.querySelector('.a-unordered-list.a-vertical.a-spacing-small')?.querySelectorAll('li span').forEach(e => {
+    //     //     if (e.innerHTML) {
+    //     //         description+= e.innerHTML + '\n';
+    //     //     }
+    //     // })
+    //     // const regexShop = /Visit the  Store/;
+    //     // const regexShop2 = /Brand: (.+?)/;
+    //     // const shop = doc?.querySelector('#bylineInfo')?.innerHTML?.match(regexShop)?.[1] || doc?.querySelector('#bylineInfo')?.innerHTML?.match(regexShop2)?.[1];
+    //     // const object = {
+    //     //     id,
+    //     //     title: doc?.querySelector('#productTitle')?.innerHTML?.trim(),
+    //     //     url: href,
+    //     //     ratings: doc.querySelector('#acrCustomerReviewText')?.innerHTML?.trim() || '0',
+    //     //     everageRating: doc.querySelector('#acrPopover')?.querySelector('.a-size-base.a-color-base')?.innerHTML?.trim() || 0,
+    //     //     amz,
+    //     //     images,
+    //     //     description,
+    //     //     shopName: shop || doc?.querySelector('#sellerProfileTriggerId')?.innerHTML,
+    //     //     cache: response?.cached
+    //     // };
+    //     // function cleanText(text) {
+    //     //     // Loại bỏ HTML entities (như &rlm;, &lrm;)
+    //     //     let cleanedText = text.replace(/&[a-zA-Z0-9#]+;/g, '');
+        
+    //     //     // Loại bỏ dấu ":" và các ký tự không cần thiết khác
+    //     //     cleanedText = cleanedText.replace(/[:‏‎]/g, ''); // Loại bỏ dấu ":" và ký tự RLM, LRM
+        
+    //     //     // Loại bỏ khoảng trắng thừa
+    //     //     cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+        
+    //     //     return cleanedText;
+    //     // }
+    //     // for (let index = 0; index < doc.querySelector('#detailBulletsWrapper_feature_div')?.querySelectorAll('.a-list-item')?.length; index++) {
+    //     //     const element = doc.querySelector('#detailBulletsWrapper_feature_div')?.querySelectorAll('.a-list-item')[index]
+            
+    //     //     const title = cleanText(element?.children?.[0]?.innerHTML ?? '');
+
+    //     //     console.log('element', title, id);
+    //     //     if (title == 'Date First Available') {
+    //     //         const dateIso = (new Date(element?.children?.[1]?.innerHTML)).toISOString().split("T")[0];
+    //     //         object['listedDate'] = dateIso;
+    //     //         let date = dayjs(dateIso);
+    //     //         const relativeTime = date.fromNow(true);
+    //     //         object['relativeTime'] = relativeTime;
+    //     //     }
+
+    //     //     if (title == 'Best Sellers Rank') {
+    //     //         let rank = [];
+    //     //         const regex = /\#[0-9]{1,10}/;
+    //     //         const match = element?.innerHTML.match(regex);
+    //     //         if (match?.[0]) {
+    //     //             // object['rank'] = match[0];
+    //     //             rank.push(`${match[0]} in our brand`);
+    //     //         }
+    //     //         element?.querySelectorAll('.a-list-item').forEach(e => {
+    //     //             if (e.innerHTML) {
+    //     //                 rank.push(encodeURIComponent(e.innerHTML));
+    //     //             }
+    //     //         });
+    //     //         object['rank'] = rank;
+    //     //     }
+
+    //     //     if (title == 'ASIN') {
+    //     //         object['asin'] = element?.children?.[1]?.innerHTML;
+    //     //     }
+
+    //     //     if (title == 'Manufacturer' && !object['shopName'] ) {
+    //     //         object['shopName'] = element?.children?.[1]?.innerHTML;
+    //     //     }
+    //     // }
+
+    //     // for (let index = 0; index < doc?.querySelector('#productDetails_detailBullets_sections1')?.querySelectorAll('tr').length; index++) {
+    //     //     const element = doc.querySelector('#productDetails_detailBullets_sections1')?.querySelectorAll('tr')[index];
+    //     //     const title = cleanText(element?.querySelector('th')?.innerHTML ?? '');
+
+    //     //     if (title == 'ASIN') {
+    //     //         object['asin'] = element?.querySelector('td')?.innerHTML?.trim();
+    //     //     }
+
+    //     //     if (title == 'Date First Available') {
+    //     //         const dateIso = (new Date(element?.querySelector('td')?.innerHTML)).toISOString().split("T")[0];
+    //     //         object['listedDate'] = dateIso;
+    //     //         let date = dayjs(dateIso);
+    //     //         const relativeTime = date.fromNow(true);
+    //     //         object['relativeTime'] = relativeTime;
+    //     //     }
+
+    //     //     if (title == 'Best Sellers Rank') {
+    //     //         const rank = [];
+    //     //         element?.querySelectorAll('td span span')?.forEach(i => {
+    //     //             rank.push(encodeURIComponent(i?.innerHTML));
+    //     //         });
+    //     //         object['rank'] = rank;
+    //     //     }
+    //     // }
+    //     if (id) {
+    //         const additionData = await sendMessageAsync({
+    //             type: "GET_PROFITGURU_DATA",
+    //             asin: id
+    //         });
+
+    //         console.log('additionData', additionData);
+    //         const object = {
+    //             reviews: additionData?.product?.reviews,
+    //             sales: additionData?.product?.sales,
+    //             sales30: additionData?.product?.sales30,
+    //             title: additionData?.product?.name || '',
+    //             images: images ? images : [additionData?.product?.img],
+    //             everageRating: additionData?.product?.rating,
+    //             shopName: additionData?.product?.brandName || '',
+    //             amz: additionData?.product?.isSoldByAmz,
+    //             id: additionData?.product?.id,
+    //             asin: additionData?.product?.asin,
+    //         }
+    //         return object;
+    //     }
+    //     return {};
+    // }
     const fetchPinInfor = async (id) => {
-        function sendMessageAsync(message) {
+        if (!id) return {};
+
+        // Helper: Gửi message tới background.js
+        const sendMessageAsync = (message) => {
             return new Promise((resolve, reject) => {
-              chrome.runtime.sendMessage(message, (response) => {
-                if (response.data) {
-                  resolve(response.data);
-                } else {
-                  reject(response.error || "Unknown error");
-                }
-              });
+                chrome.runtime.sendMessage(message, (response) => {
+                    if (response?.data) {
+                        resolve(response.data);
+                    } else {
+                        reject(response?.error || "Unknown error");
+                    }
+                });
             });
-        }
-        const resizeImage = (imageSrc) => {
-            // let url = imageSrc.replace(/_QL\d+_/, '_')
-            // .replace(/_FMwebp_/, '_');
+        };
 
-            // return url.replace(/_AC_(SX\d+)?(_SY\d+)?_/, `_AC_SX1200_`);
-            const extension = imageSrc.split('.')?.pop() || 'jpg'; 
-            return (imageSrc?.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
+        // Helper: Resize image to 1200px
+        // const resizeImage = (imageSrc) => {
+        //     const extension = imageSrc.split('.').pop() || 'jpg';
+        //     return (imageSrc.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
+        // };
+        function cleanAmazonImageUrl(url) {
+            return url.replace(/_AC(_SX\d+)?_/g, '');
         }
-        const href =`https://www.amazon.com/dp/${id}`
-        const response =  await axios.get(`${href}?psc=1&from-extension=true`, {
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-                'If-None-Match': '',
-            }
-        });
 
-        const htmlString = response.data;
+        const href = `https://www.amazon.com/dp/${id}?psc=1&from-extension=true`;
+
+        const [amazonRes, additionData] = await Promise.all([
+            axios.get(href, {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                    'If-None-Match': '',
+                }
+            }),
+            sendMessageAsync({ type: "GET_PROFITGURU_DATA", asin: id })
+        ]);
+
+        const htmlString = amazonRes.data;
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
 
-        const amz = doc.getElementById('merchByAmazonBranding_feature_div')?.querySelector('img') ? true : false;
+        // Parse hình ảnh từ Amazon
+        const amz = !!doc.getElementById('merchByAmazonBranding_feature_div')?.querySelector('img');
+        // const amz = additionData?.product?.isSoldByAmz;
         const images = [];
-        if (amz) {
-            let originalPng = doc.getElementById('imgTagWrapperId')?.querySelector('img')?.getAttribute('src');
-            let png1200 = resizeImage(originalPng || '');
-            if (png1200) {
-                images.push(png1200);
-            }
-        } else {
-            try {
-                const tempImages = Object.keys(JSON.parse(doc?.getElementById('imgTagWrapperId').querySelector('img').getAttribute('data-a-dynamic-image')));
-                tempImages.map(src => {
-                    resizeImage(src);
-                    if (images.length < 4) {
-                        images.push(resizeImage(src));
-                    }
-                });
-            } catch (error) {
-                
-            }
-        }
-        let description = '';
-        doc.querySelector('.a-unordered-list.a-vertical.a-spacing-small')?.querySelectorAll('li span').forEach(e => {
-            if (e.innerHTML) {
-                description+= e.innerHTML + '\n';
-            }
-        })
-        const regexShop = /Visit the  Store/;
-        const regexShop2 = /Brand: (.+?)/;
-        const shop = doc?.querySelector('#bylineInfo')?.innerHTML?.match(regexShop)?.[1] || doc?.querySelector('#bylineInfo')?.innerHTML?.match(regexShop2)?.[1];
-        const object = {
-            id,
-            title: doc?.querySelector('#productTitle')?.innerHTML?.trim(),
-            url: href,
-            ratings: doc.querySelector('#acrCustomerReviewText')?.innerHTML?.trim() || 0,
-            everageRating: doc.querySelector('#acrPopover')?.querySelector('.a-size-base.a-color-base')?.innerHTML?.trim() || 0,
-            amz,
-            images,
-            description,
-            shopName: shop || doc?.querySelector('#sellerProfileTriggerId')?.innerHTML,
-            cache: response?.cached
-        };
-        function cleanText(text) {
-            // Loại bỏ HTML entities (như &rlm;, &lrm;)
-            let cleanedText = text.replace(/&[a-zA-Z0-9#]+;/g, '');
-        
-            // Loại bỏ dấu ":" và các ký tự không cần thiết khác
-            cleanedText = cleanedText.replace(/[:‏‎]/g, ''); // Loại bỏ dấu ":" và ký tự RLM, LRM
-        
-            // Loại bỏ khoảng trắng thừa
-            cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
-        
-            return cleanedText;
-        }
-        for (let index = 0; index < doc.querySelector('#detailBulletsWrapper_feature_div')?.querySelectorAll('.a-list-item')?.length; index++) {
-            const element = doc.querySelector('#detailBulletsWrapper_feature_div')?.querySelectorAll('.a-list-item')[index]
-            
-            const title = cleanText(element?.children?.[0]?.innerHTML ?? '');
 
-            console.log('element', title, id);
-            if (title == 'Date First Available') {
-                const dateIso = (new Date(element?.children?.[1]?.innerHTML)).toISOString().split("T")[0];
-                object['listedDate'] = dateIso;
-                let date = dayjs(dateIso);
-                const relativeTime = date.fromNow(true);
-                object['relativeTime'] = relativeTime;
-            }
-
-            if (title == 'Best Sellers Rank') {
-                let rank = [];
-                const regex = /\#[0-9]{1,10}/;
-                const match = element?.innerHTML.match(regex);
-                if (match?.[0]) {
-                    // object['rank'] = match[0];
-                    rank.push(`${match[0]} in our brand`);
+        try {
+            if (amz) {
+                const originalPng = doc.getElementById('imgTagWrapperId')?.querySelector('img')?.getAttribute('src');
+                const png1200 = cleanAmazonImageUrl(originalPng || '');
+                if (png1200) images.push(png1200);
+            } else {
+                const imageData = doc.getElementById('imgTagWrapperId')?.querySelector('img')?.getAttribute('data-a-dynamic-image');
+                const tempImages = Object.keys(JSON.parse(imageData || '{}'));
+                for (let src of tempImages) {
+                    if (images.length >= 4) break;
+                    images.push(cleanAmazonImageUrl(src));
                 }
-                element?.querySelectorAll('.a-list-item').forEach(e => {
-                    if (e.innerHTML) {
-                        rank.push(encodeURIComponent(e.innerHTML));
-                    }
-                });
-                object['rank'] = rank;
             }
-
-            if (title == 'ASIN') {
-                object['asin'] = element?.children?.[1]?.innerHTML;
-            }
-
-            if (title == 'Manufacturer' && !object['shopName'] ) {
-                object['shopName'] = element?.children?.[1]?.innerHTML;
-            }
+        } catch (err) {
+            console.warn('Error parsing Amazon images', err);
         }
 
-        for (let index = 0; index < doc?.querySelector('#productDetails_detailBullets_sections1')?.querySelectorAll('tr').length; index++) {
-            const element = doc.querySelector('#productDetails_detailBullets_sections1')?.querySelectorAll('tr')[index];
-            const title = cleanText(element?.querySelector('th')?.innerHTML ?? '');
+        const product = additionData?.product || {};
 
-            if (title == 'ASIN') {
-                object['asin'] = element?.querySelector('td')?.innerHTML?.trim();
-            }
-
-            if (title == 'Date First Available') {
-                const dateIso = (new Date(element?.querySelector('td')?.innerHTML)).toISOString().split("T")[0];
-                object['listedDate'] = dateIso;
-                let date = dayjs(dateIso);
-                const relativeTime = date.fromNow(true);
-                object['relativeTime'] = relativeTime;
-            }
-
-            if (title == 'Best Sellers Rank') {
-                const rank = [];
-                element?.querySelectorAll('td span span')?.forEach(i => {
-                    rank.push(encodeURIComponent(i?.innerHTML));
-                });
-                object['rank'] = rank;
-            }
-        }
-        if (id) {
-            const additionData = await sendMessageAsync({
-                type: "GET_PROFITGURU_DATA",
-                asin: id
-            });
-            console.log('additionData', additionData)
-            object['reviews'] = additionData?.product?.reviews;
-            object['sales'] = additionData?.product?.sales;
-            object['sales30'] = additionData?.product?.sales30;
-            if (!object['shopName']) {
-                object['shopName'] = additionData?.product?.brandName;
-            }
-        }
-        return object
-    }
+        return {
+            reviews: product?.reviews,
+            sales: product?.sales,
+            sales30: product?.sales30,
+            title: product?.name || '',
+            images: images?.length ? images : [product?.img],
+            everageRating: product?.rating,
+            shopName: product?.brandName || '',
+            amz: amz, //product?.isSoldByAmz,
+            id: product?.id,
+            asin: product?.asin,
+            url: `https://www.amazon.com/dp/${id}`
+        };
+    };
 
     const reloadPins = async (pinIds) => {
         const batchSize = 5; // Số lượng tối đa mỗi batch là 5
@@ -501,7 +640,7 @@ const App = () => {
     };
 
     const hightlightType = (pin) => {
-        const { _highlight } = presetUsed;
+        const { type, ratingMin, RatingMax } = presetUsed;
 
         if (!pin) {
             return { typeHightlight: '', match: '' };
@@ -544,22 +683,18 @@ const App = () => {
             }
         }
 
-        let d = '';
-        let hl = false;
-    
-        // Kiểm tra listedDate
-        if (pin?.listedDate) {
-            let sd = pin?.listedDate;
-            const dd = dayjs(sd);
-            if (_highlight && _highlight > 0) {
-                const now = dayjs();
-                const diff = now.diff(dd, "month", true);
-                if (diff <= _highlight) {
-                    hl = true;
-                    return { typeHightlight: 'ok', match: '' };
-                }
+        if ((pin?.reviews || 0) >= ratingMin || (pin?.reviews || 0) <= RatingMax) {
+            if (type === 'all') {
+                return {typeHightlight: 'ok', match: ''};
             }
-            d = dd.fromNow(true); // 22 years
+
+            if (type === 'amz' && pin?.amz) {
+                return {typeHightlight: 'ok', match: ''};
+            }
+
+            if (type === 'fba' && !pin?.amz) {
+                return {typeHightlight: 'ok', match: ''};
+            }
         }
 
         return { typeHightlight: '', match: '' };
