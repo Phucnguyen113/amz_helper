@@ -225,7 +225,7 @@ const App = () => {
                 console.log('err', error)
                 messageApi.open({
                     type: "error",
-                    content: `Maybe your network is interruped, render checkboxes failed! `,
+                    content: `Maybe your network is interruped or Amz block your request, render checkboxes failed! `,
                     key: "render_failed",
                     duration: 6,
                 });
