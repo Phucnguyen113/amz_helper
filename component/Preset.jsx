@@ -40,7 +40,7 @@ const Preset = ({ isOpen, setOpen }) => {
     }, [presetUsed, niches]);
 
     const fetchQuotes = async () => {
-      const url = `https://evo.evolutee.net/api/v4/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
+      const url = `https://evo.evolutee.net/api/v5/quote?key=${encodeURIComponent(token)}&niche_id=${niche}`
       try {
         const quotes = await (await fetch(url)).json();
         if (quotes?.status === false) {
@@ -177,7 +177,7 @@ const Preset = ({ isOpen, setOpen }) => {
                     },
                   ]}
                 >
-                  <InputNumber min={0} step={1} defaultValue={0} style={{width: '100%'}}/>
+                  <InputNumber min={0} step={1} style={{width: '100%'}}/>
               </Form.Item>
             </Col>
               
@@ -189,7 +189,7 @@ const Preset = ({ isOpen, setOpen }) => {
                     },
                   ]}
                 >
-                  <InputNumber min={0} step={1} defaultValue={0} style={{width: '100%'}}/>
+                  <InputNumber min={0} step={1}  style={{width: '100%'}}/>
               </Form.Item>
             </Col>
           </Row>
@@ -308,7 +308,7 @@ const Preset = ({ isOpen, setOpen }) => {
               onChange={(value) => setNiche(value)}
               maxCount={1}
               allowClear
-              options={nicheOptions}
+              options={nicheOptions.length ? nicheOptions : [{label: 'ccc', value: 'ccc'}]}
             />
           </Form.Item>
         </Form>

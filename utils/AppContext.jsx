@@ -41,8 +41,9 @@ export const AppProvider = ({children}) => {
                 high_price: pin?.highPrice || pin?.price || 0,
                 low_price: pin?.lowPrice || pin?.price || 0,
                 title: removeNoneUnicode(pin.title?.length ? pin.title : "Untitled"),
+                description: pin?.description,
                 branch_name: pin?.shopName,
-                shop_url: pin?.shopUrl,
+                seller_type: pin?.amz ? 'AMZ' : 'FBA',
                 product_url: pin?.url,
                 reviews: pin?.reviews,
                 collection: pin?.collection || null,
@@ -52,9 +53,6 @@ export const AppProvider = ({children}) => {
                 idea: Array.isArray(pin?.idea) ? pin?.idea[0] || '' : pin?.idea,
                 niche: Array.isArray(pin?.niche) ? pin?.niche[0] || '' : pin?.niche,
                 image: images,
-                 // date: pin.listedDate,
-                // keyword: pin?.keyword,
-                // related_keyword: pin?.relatedKeyword,
               };
             pinList.push(data);
         }

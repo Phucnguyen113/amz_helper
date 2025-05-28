@@ -155,7 +155,7 @@ const App = () => {
         //     }
         // }
 
-        async function processBatch(elements, batchSize = 2) {
+        async function processBatch(elements, batchSize = 5) {
             const failPins = [];
 
             for (let i = 0; i < elements.length; i += batchSize) {
@@ -165,6 +165,15 @@ const App = () => {
                 await Promise.all(batch.map(async (element) => {
                     const id = $(element).attr('data-asin');
                     const data = await fetchPinInfor(id);
+                    const lowPrice = element.querySelectorAll('.a-price span.a-offscreen')?.[0]?.innerHTML;
+                    const highPrice = element.querySelectorAll('.a-price span.a-offscreen')?.[1]?.innerHTML;
+                    if (lowPrice) {
+                        data['lowPrice'] = lowPrice;
+                    }
+                    
+                    if (highPrice) {
+                        data['highPrice'] = highPrice;
+                    }
                     console.log('data', id, data);
 
                     $(element).attr('data-total-sales', data?.sales30 || 0);
@@ -211,7 +220,7 @@ const App = () => {
 
 
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
-        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace]),span[data-asin]').toArray()
+        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace], [data-csa-c-content-id="s-search-add-to-cart-action"]),span[data-asin]').toArray()
         .filter(el => {
             const id = $(el).attr('data-asin');
             return debouncedVisibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
@@ -504,7 +513,9 @@ const App = () => {
         //     return (imageSrc.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
         // };
         function cleanAmazonImageUrl(url) {
-            return url.replace(/_AC(_SX\d+)?_/g, '');
+            return url.replace(/_AC(_SX\d+)?_/g, '_AC_SX1200')
+            .replace(/SX\d+/g, 'SX1200')
+            .replace(/SY\d+/g, 'SY1200');
         }
 
         const href = `https://www.amazon.com/dp/${id}?psc=1&from-extension=true`;
@@ -536,17 +547,27 @@ const App = () => {
                 const png1200 = cleanAmazonImageUrl(originalPng || '');
                 if (png1200) images.push(png1200);
             } else {
-                const imageData = doc.getElementById('imgTagWrapperId')?.querySelector('img')?.getAttribute('data-a-dynamic-image');
-                const tempImages = Object.keys(JSON.parse(imageData || '{}'));
-                for (let src of tempImages) {
-                    if (images.length >= 4) break;
-                    images.push(cleanAmazonImageUrl(src));
+                // const imageData = doc.querySelectorAll('li.a-spacing-small.item img')
+                const imageData = doc.querySelectorAll('.imgTagWrapper img');
+                console.log('img',id, doc.querySelectorAll('.imgTagWrapper img'));
+                // const tempImages = Object.keys(JSON.parse(imageData || '{}'));
+                if (imageData) {
+                    for (let i = 0; i < imageData.length; i++) {
+                        if (images.length >= 4) break;
+                        const src = imageData[i].getAttribute('src') || '';
+                        images.push(cleanAmazonImageUrl(src));
+                    }
                 }
             }
         } catch (err) {
             console.warn('Error parsing Amazon images', err);
         }
-
+        let description = '';
+        doc.querySelector('.a-unordered-list.a-vertical.a-spacing-small')?.querySelectorAll('li span').forEach(e => {
+            if (e.innerHTML) {
+                description+= e.innerHTML + '\n';
+            }
+        })
         const product = additionData?.product || {};
 
         return {
@@ -560,7 +581,9 @@ const App = () => {
             amz: amz, //product?.isSoldByAmz,
             id: product?.id,
             asin: product?.asin,
-            url: `https://www.amazon.com/dp/${id}`
+            url: `https://www.amazon.com/dp/${id}`,
+            lowPrice: product?.lowestPrice ? `$ ${product?.lowestPrice}` : null,
+            description,
         };
     };
 

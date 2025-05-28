@@ -6,11 +6,9 @@ export default function useVisibleListings(threshold = 0.5) {
   useEffect(() => {
     const visibleMap = new Map();
 
-    // Tạo observer để theo dõi khi các phần tử mới được thêm vào DOM
     const mutationObserver = new MutationObserver(() => {
-      // Lấy tất cả các phần tử sau mỗi mutation (thay đổi DOM)
       const selectors = [
-        '[data-asin]',
+        '[data-asin]:not([data-csa-c-content-id="s-search-add-to-cart-action"])',
         '[data-csa-c-item-type="asin"]'
       ];
       const elements = document.querySelectorAll(selectors.join(','));
