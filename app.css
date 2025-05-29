@@ -45,7 +45,7 @@
   .saph-inject-data .saph-stats > div {
     background: rgba(255, 255, 255, 0.8);
     border-radius: 3px;
-    padding: 3px 5px;
+    padding: 3px 5px!important;
     min-width: 40px;
   }
 
@@ -241,4 +241,8 @@
 .ant-message-custom-content.ant-message-warning {
   color: #faad14;
   font-weight: bold;
+}
+
+.saph-inject-data div {
+  height: unset!important;
 }

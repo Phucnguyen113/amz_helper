@@ -34,15 +34,16 @@ export const AppProvider = ({children}) => {
                 continue;
             }
 
-            const images = pin?.images?.join(';');
+            const images = pin?.images;
 
             const data = {
                 id: pin.id,
+                key:pin.id,
                 high_price: pin?.highPrice || pin?.price || 0,
                 low_price: pin?.lowPrice || pin?.price || 0,
                 title: removeNoneUnicode(pin.title?.length ? pin.title : "Untitled"),
                 description: pin?.description,
-                branch_name: pin?.shopName,
+                shop_name: pin?.shopName,
                 seller_type: pin?.amz ? 'AMZ' : 'FBA',
                 product_url: pin?.url,
                 reviews: pin?.reviews,
@@ -52,7 +53,7 @@ export const AppProvider = ({children}) => {
                 custom: Array.isArray(pin?.custom) ? pin?.custom[[0]] || '' : pin?.custom,
                 idea: Array.isArray(pin?.idea) ? pin?.idea[0] || '' : pin?.idea,
                 niche: Array.isArray(pin?.niche) ? pin?.niche[0] || '' : pin?.niche,
-                image: images,
+                images: images,
               };
             pinList.push(data);
         }

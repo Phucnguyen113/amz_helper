@@ -1,59 +1,53 @@
 import axios from './Axios';
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // Kiểm tra loại yêu cầu (ở đây là GET API)
+    function getCookies(domain) {
+        return new Promise(resolve => {
+            chrome.cookies.getAll({ domain }, resolve);
+        });
+    }
+    
+    function removeCookie(cookie) {
+        return new Promise(resolve => {
+            chrome.cookies.remove({
+                url: `https://${cookie.domain}${cookie.path}`,
+                name: cookie.name
+            }, resolve);
+        });
+    }
+
     if (request.type === "GET_PROFITGURU_DATA") {
       const asin = request.asin;
   
-      // Gọi API với URL động
-    //   fetch(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
-    //     method: 'GET',
-    //     headers: {
-    //         'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
-    //     },
-    //     credentials: 'include'  // Nếu cần gửi cookie cùng với yêu cầu
-    //   })
-    //   .then(response => response.json())
-    //   .then(responseData => {
-    //     // Gửi kết quả API lại cho caller (content script/popup)
-    //     sendResponse({ data: responseData });
-    //     chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
-    //         cookies.forEach(cookie => {
-    //             chrome.cookies.remove({
-    //                 url: `https://${cookie.domain}${cookie.path}`,
-    //                 name: cookie.name
-    //             });
-    //         });
-    //     });
-    //   })
-    //   .catch(error => {
-    //     console.log('Error fetching API:', error);
-    //     sendResponse({ error: error.message });
-    //   });
         try {
-            chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
-                cookies.forEach(cookie => {
-                    chrome.cookies.remove({
-                        url: `https://${cookie.domain}${cookie.path}`,
-                        name: cookie.name
-                    });
+            // chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
+            //     cookies.forEach(cookie => {
+            //         chrome.cookies.remove({
+            //             url: `https://${cookie.domain}${cookie.path}`,
+            //             name: cookie.name
+            //         });
+            //     });
+            // });
+            async function getAdditionalInfo()
+            {
+                const cookies = await getCookies("profitguru.com");
+                for (const cookie of cookies) {
+                    await removeCookie(cookie);
+                }
+                const response = axios.get(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
+                    headers: {
+                        'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
+                    },
+                    withCredentials: true // Send cookies with the request
+                }).then(async (response) => {
+                    const cookies = await getCookies("profitguru.com");
+                    for (const cookie of cookies) {
+                        await removeCookie(cookie);
+                    }
+                    sendResponse({ data: response?.data });
                 });
-            });
-             const response = axios.get(`https://www.profitguru.com/ext/api/asin/${asin}?re=0`, {
-                headers: {
-                    'Cookie': 'PHPSESSID=8mkdgk1lijnoi627k0pd898i1g'
-                },
-                withCredentials: true // Send cookies with the request
-            }).then((response) => {
-                sendResponse({ data: response?.data });
-                chrome.cookies.getAll({ domain: "profitguru.com" }, (cookies) => {
-                    cookies.forEach(cookie => {
-                        chrome.cookies.remove({
-                            url: `https://${cookie.domain}${cookie.path}`,
-                            name: cookie.name
-                        });
-                    });
-                });
-            });
+            }
+            getAdditionalInfo();
         } catch (error) {
             sendResponse({ error: error.message });
         }
@@ -170,8 +164,8 @@ chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) 
 chrome.runtime.onMessage.addListener(async function (msg, sender, sendResponse) {
     if (msg.action === 'savePins') {
         const pins = msg.pins;
-        const body = {data: pins};
-        const url = `https://evo.evolutee.net/api/v5/amazon/save?key=${encodeURIComponent(msg.key)}`
+        const body = pins;
+        const url = `https://evo.evolutee.net/api/v5/amz/save?key=${encodeURIComponent(msg.key)}`
         try {
             const response = await fetch(url, {
                 method: 'POST',

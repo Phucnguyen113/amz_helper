@@ -262,7 +262,7 @@ function SpinTable({dataSource, hightlightPinType, setItemsSelected, reloadPins}
                 <i>#{row.id}</i>
               </div>
               <div>
-                <span title="Date added">{date}</span>
+                <span title="Type">{row?.amz ? 'AMZ' : 'FBA'}</span>
               </div>
               <div className="table-stats">
                 <div title="shop">

@@ -79,6 +79,14 @@ const App = () => {
                     }
                 }
             }
+            const productDetailElement = document.querySelector('div#imgTagWrapperId');
+            if (productDetailElement) {
+                const url = window.location.pathname;
+                const match = url.match(/(?<=dp\/)[A-Z0-9]{10}/);
+                if (match) {
+                    $(productDetailElement).attr('data-asin', match);
+                }
+            }
         }
         renderPinDetailOrRelatedPin();
     })
@@ -97,6 +105,15 @@ const App = () => {
                     if (asin) {
                         $(element).attr('data-asin', asin);
                     }
+                }
+            }
+
+            const productDetailElement = document.querySelector('div#imgTagWrapperId');
+            if (productDetailElement) {
+                const url = window.location.pathname;
+                const match = url.match(/(?<=dp\/)[A-Z0-9]{10}/);
+                if (match) {
+                    $(productDetailElement).attr('data-asin', match);
                 }
             }
         }
@@ -161,10 +178,21 @@ const App = () => {
             for (let i = 0; i < elements.length; i += batchSize) {
                 const batch = elements.slice(i, i + batchSize);
 
-                // Xử lý song song 2 phần tử trong batch
                 await Promise.all(batch.map(async (element) => {
                     const id = $(element).attr('data-asin');
-                    const data = await fetchPinInfor(id);
+                    let data = {};
+                    try {
+                        data = await fetchPinInfor(id);
+                    } catch (error) {
+                        messageApi.open({
+                            type: "error",
+                            content: `Maybe your network is interruped or Amz block your request, render checkboxes failed! `,
+                            key: "render_failed",
+                            duration: 6,
+                        });
+                        failPins.push(id);
+                        return;
+                    }
                     const lowPrice = element.querySelectorAll('.a-price span.a-offscreen')?.[0]?.innerHTML;
                     const highPrice = element.querySelectorAll('.a-price span.a-offscreen')?.[1]?.innerHTML;
                     if (lowPrice) {
@@ -195,7 +223,6 @@ const App = () => {
                                 <div title="reviews"><i class="fas fa-comment"></i> ${data?.reviews || 0}</div>
                                 <div title="30 days sales count"><i class="fas fa-shopping-cart"></i> ${data?.sales30 || 0}</div>
                                 ${match ? `<div class="hl-tag">${match}</div>` : ''}
-                                <div class="sahp-custm" title="Is custom type">Type Custom</div>
                             </div>
                             <input class="saph-check" id="checkbox-${id}" data-id="${id}" type="checkbox" ${pinsRef.current.map(pin => pin.id).includes(id) ? 'checked' : ''} />
                         </div>
@@ -212,15 +239,13 @@ const App = () => {
                         input.attr('data-json', JSON.stringify(data));
                     }
                 }));
-
-                // Chờ 1 chút nếu muốn giới hạn tốc độ (tuỳ chọn)
-                // await new Promise(resolve => setTimeout(resolve, 200));
             }
+            setFailedPins(prev => [...prev, ...failPins]);
         }
 
 
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
-        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace], [data-csa-c-content-id="s-search-add-to-cart-action"]),span[data-asin]').toArray()
+        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace], [data-csa-c-content-id="s-search-add-to-cart-action"], #detailBullets_averageCustomerReviews, [data-csa-c-content-id="s-search-see-details-button"]),span[data-asin], li[data-asin]:not([data-csa-c-content-id="twister-legacy-swatch-swatchAvailable"])').toArray()
         .filter(el => {
             const id = $(el).attr('data-asin');
             return debouncedVisibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
@@ -757,7 +782,6 @@ const App = () => {
 
     return (
         <div style={{position: 'fixed', bottom: '100px', right: '10px', zIndex: 10}} >
-            {/** <div>visibleIds:  {visibleIds.join(', ')}</div> */}
             <div style={{marginBottom: '10px'}}>
                 {isRender ? <Spin size="large" /> : null}
             </div>

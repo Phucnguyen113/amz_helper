@@ -8,8 +8,9 @@ export default function useVisibleListings(threshold = 0.5) {
 
     const mutationObserver = new MutationObserver(() => {
       const selectors = [
-        '[data-asin]:not([data-csa-c-content-id="s-search-add-to-cart-action"])',
-        '[data-csa-c-item-type="asin"]'
+        // '[data-asin]:not([data-csa-c-content-id="s-search-add-to-cart-action"], #detailBullets_averageCustomerReviews)',
+        '[data-asin]:not(#averageCustomerReviews, [data-marketplace], [data-csa-c-content-id="s-search-add-to-cart-action"], #detailBullets_averageCustomerReviews, [data-csa-c-content-id="s-search-see-details-button"])',
+        '[data-csa-c-item-type="asin"]',
       ];
       const elements = document.querySelectorAll(selectors.join(','));
       
