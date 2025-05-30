@@ -245,7 +245,7 @@ const App = () => {
 
 
         // console.log('re render checkbox', pinsRef.current.map(pin => pin.id))
-        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-marketplace], [data-csa-c-content-id="s-search-add-to-cart-action"], #detailBullets_averageCustomerReviews, [data-csa-c-content-id="s-search-see-details-button"]),span[data-asin], li[data-asin]:not([data-csa-c-content-id="twister-legacy-swatch-swatchAvailable"])').toArray()
+        const elements = $('div[data-asin]:not(#averageCustomerReviews, [data-card-metrics-id="cross-border-widget_DetailPage_4"],[data-csa-c-content-id="ax-atc-EUIC_AddToCart_Search-content"],[data-marketplace], [data-csa-c-content-id="s-search-add-to-cart-action"], #detailBullets_averageCustomerReviews, [data-csa-c-content-id="s-search-see-details-button"]),span[data-asin], li[data-asin]:not([data-csa-c-content-id="twister-legacy-swatch-swatchAvailable"])').toArray()
         .filter(el => {
             const id = $(el).attr('data-asin');
             return debouncedVisibleIds.includes(id?.toString()); // Kiểm tra xem id có trong visibleIds không
@@ -593,6 +593,13 @@ const App = () => {
                 description+= e.innerHTML + '\n';
             }
         })
+        if (!description) {
+            doc.querySelector('.a-unordered-list.a-vertical.a-spacing-mini')?.querySelectorAll('li span').forEach(e => {
+                if (e.innerHTML) {
+                    description+= e.innerHTML + '\n';
+                }
+            })
+        }
         const product = additionData?.product || {};
 
         return {
@@ -688,7 +695,7 @@ const App = () => {
     };
 
     const hightlightType = (pin) => {
-        const { type, ratingMin, RatingMax } = presetUsed;
+        const { type, ratingMin, ratingMax } = presetUsed;
 
         if (!pin) {
             return { typeHightlight: '', match: '' };
@@ -731,7 +738,7 @@ const App = () => {
             }
         }
 
-        if ((pin?.reviews || 0) >= ratingMin || (pin?.reviews || 0) <= RatingMax) {
+        if ((pin?.reviews || 0) >= ratingMin && (pin?.reviews || 0) <= ratingMax) {
             if (type === 'all') {
                 return {typeHightlight: 'ok', match: ''};
             }
