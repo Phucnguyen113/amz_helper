@@ -36,14 +36,14 @@ module.exports = {
         },
     ]
   },
-  // plugins: [
-  //   new WebpackObfuscatorPlugin(
-  //       {
-  //           rotateStringArray: true,
-  //           stringArray: true,
-  //           stringArrayThreshold: 0.75
-  //       },
-  //       ['**/vendor.js'] // Không làm rối file vendor để tránh lỗi
-  //   )
-  // ]
+  plugins: [
+    new WebpackObfuscatorPlugin(
+        {
+            rotateStringArray: true,
+            stringArray: true,
+            stringArrayThreshold: 0.75
+        },
+        ['**/vendor.js'] // Không làm rối file vendor để tránh lỗi
+    )
+  ]
 };

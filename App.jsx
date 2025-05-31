@@ -532,11 +532,6 @@ const App = () => {
             });
         };
 
-        // Helper: Resize image to 1200px
-        // const resizeImage = (imageSrc) => {
-        //     const extension = imageSrc.split('.').pop() || 'jpg';
-        //     return (imageSrc.match(/^(https:\/\/.+?\/[^._]+)/)?.[1] || '') + `._AC_SX1200_.` + extension;
-        // };
         function cleanAmazonImageUrl(url) {
             return url.replace(/_AC(_SX\d+)?_/g, '_AC_SX1200')
             .replace(/SX\d+/g, 'SX1200')
@@ -815,7 +810,7 @@ const App = () => {
             <Drawer
                 id="pin-drawer"
                 style={{zindex: 10000}}
-                title="Pinterest Helper"
+                title="Amazon Helper"
                 placement={'right'}
                 closable={false}
                 onClose={closeDrawer}
